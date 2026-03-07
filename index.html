@@ -580,6 +580,7 @@
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
     <button class="back-btn" id="entry-back" onclick="history.go(-1)" style="margin-bottom:0">← 返回</button>
     <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .9rem" onclick="openEditDate()">修改日期</button>
+    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .9rem" onclick="openEditContent()">编辑内容</button>
   </div>
   <div class="entry-meta" id="entry-date"></div>
   <div class="entry-season" id="entry-season"></div>
@@ -621,7 +622,18 @@
 <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
 <div class="toast" id="toast"></div>
 
-<!-- ── EDIT DATE MODAL ──────────────────────────── -->
+<!-- ── EDIT CONTENT MODAL ───────────────────────── -->
+<div class="modal-overlay" id="edit-content-modal">
+  <div class="modal" style="max-width:680px">
+    <h2>编辑内容 · <span id="edit-content-date" style="color:var(--gold);font-size:1rem;font-style:normal"></span></h2>
+    <p class="modal-meta">直接修改文本。保存后将重新分析符号。</p>
+    <textarea id="edit-content-input" style="height:340px"></textarea>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeEditContentModal()">取消</button>
+      <button class="btn-primary" onclick="confirmEditContent()">保存</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="edit-date-modal">
   <div class="modal" style="max-width:360px">
     <h2>修改日期</h2>
@@ -1196,9 +1208,33 @@ function openEntry(date, highlightWord) {
   showPage('entry');
 }
 
+function openEditContent() {
+  if (!currentEntryDate) return;
+  document.getElementById('edit-content-date').textContent = currentEntryDate;
+  document.getElementById('edit-content-input').value = DB.entries[currentEntryDate].content;
+  document.getElementById('edit-content-modal').classList.add('open');
+}
+
+function closeEditContentModal() {
+  document.getElementById('edit-content-modal').classList.remove('open');
+}
+
+function confirmEditContent() {
+  const newContent = document.getElementById('edit-content-input').value.trim();
+  if (!newContent) { toast('内容不能为空', true); return; }
+  DB.entries[currentEntryDate].content = newContent;
+  rebuildSymbols();
+  save();
+  closeEditContentModal();
+  // Refresh entry view
+  openEntry(currentEntryDate);
+  renderDashboard(); renderTimeline();
+  toast('内容已保存，符号已重新分析');
+}
+
+
 function openEditDate() {
   if (!currentEntryDate) return;
-  document.getElementById('edit-date-current').textContent = currentEntryDate;
   document.getElementById('edit-date-input').value = currentEntryDate;
   document.getElementById('edit-date-modal').classList.add('open');
   setTimeout(() => document.getElementById('edit-date-input').select(), 50);
@@ -1400,6 +1436,9 @@ if (Object.keys(DB.entries).length > 0) {
   showPage('landing', true);
 }
 
+document.getElementById('edit-content-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditContentModal();
+});
 document.getElementById('edit-date-modal').addEventListener('click', function(e) {
   if (e.target === this) closeEditDateModal();
 });
