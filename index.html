@@ -404,12 +404,12 @@
   /* ─── TIMELINE ─── */
   .timeline { display: flex; flex-direction: column; gap: 0; }
   .tl-entry {
-    display: flex; gap: 1.5rem;
-    padding: .8rem 0;
+    display: flex; gap: 1.5rem; align-items: flex-start;
     border-bottom: 1px solid var(--border);
-    cursor: pointer; transition: background .18s;
+    cursor: default;
     border-radius: 4px; padding: .7rem .8rem;
     margin: 0 -.8rem;
+    transition: background .18s;
   }
   .tl-entry:hover { background: var(--bg2); }
   .tl-date {
@@ -472,6 +472,34 @@
     transition: width .3s;
   }
 
+
+  /* ─── TIMELINE DELETE ─── */
+  .tl-delete-btn {
+    background: none; border: 1px solid transparent;
+    color: var(--text-dim); font-size: .72rem;
+    padding: .25rem .55rem; border-radius: 4px;
+    cursor: pointer; opacity: 0; transition: all .18s;
+    font-family: 'Noto Serif SC', serif;
+    white-space: nowrap; align-self: center; flex-shrink: 0;
+  }
+  .tl-entry:hover .tl-delete-btn { opacity: 1; }
+  .tl-delete-btn.armed {
+    color: var(--red); border-color: rgba(200,120,120,0.4);
+    opacity: 1; background: rgba(200,120,120,0.08);
+  }
+
+  /* ─── EXCLUDE DATE TOGGLE ─── */
+  .excl-toggle-btn {
+    font-size: .7rem; color: var(--text-dim);
+    cursor: pointer; padding: 0 .2rem;
+    opacity: 0; transition: opacity .15s;
+    line-height: 1; vertical-align: middle;
+  }
+  .chip-wrap:hover .excl-toggle-btn { opacity: 1; }
+  .excluded-chip {
+    text-decoration: line-through;
+    color: var(--text-dim) !important;
+  }
 
   /* ─── TIMELINE DIVIDERS ─── */
   .tl-year-divider {
@@ -671,7 +699,7 @@
   <div class="detail-header" style="align-items:center;gap:1rem">
     <div class="detail-word" id="group-detail-name" style="color:var(--gold)"></div>
     <span id="group-detail-star" class="star-btn" style="font-size:1.4rem;cursor:pointer"></span>
-    <button id="group-detail-edit" class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem">移除成员</button>
+    <button id="group-detail-edit" class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem">添加成员</button>
     <button onclick="deleteCurrentGroup()" class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem;color:var(--red)">删除符号组</button>
   </div>
   <div class="section-title">组内符号</div>
@@ -780,7 +808,7 @@
 // DATA
 // ══════════════════════════════════════════════════════
 const STORAGE_KEY = 'dreamarchive_v2';
-let DB = { entries: {}, symbols: {}, blocked: [], starred: [], groups: {} };
+let DB = { entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {} };
 let navHistory = [];
 let currentSymbolSort = 'freq';
 let currentSeason = '';
@@ -795,7 +823,7 @@ function load() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (raw) {
     const parsed = JSON.parse(raw);
-    DB = Object.assign({ entries: {}, symbols: {}, blocked: [], starred: [], groups: {} }, parsed);
+    DB = Object.assign({ entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {} }, parsed);
   }
 }
 
@@ -951,8 +979,10 @@ function countExclusive(word, text) {
 function getExclusiveStats(word, validDates) {
   let days = 0, freq = 0;
   const dates = [];
+  const excl = (DB.excluded || {})[word] || [];
   for (const entry of Object.values(DB.entries)) {
     if (validDates && !validDates.has(entry.date)) continue;
+    if (excl.includes(entry.date)) continue; // manually excluded
     const c = countExclusive(word, entry.content);
     if (c > 0) { days++; freq += c; dates.push(entry.date); }
   }
@@ -1266,13 +1296,35 @@ function batchBlock() {
   save(); renderSymbols(); toast(`已屏蔽 ${words.length} 个符号`);
 }
 
-// ── Group picker modal ──
-let _pickerPendingWords = [];  // words waiting to be assigned
-let _pickerMode = '';          // 'add' | 'create'
+let _pickerPendingWords = [];
+let _pickerTargetGroupId = null; // if set, directly add to this group (add-members mode)
 
-function openGroupPicker(words) {
-  _pickerPendingWords = words;
+function openGroupPicker(words, targetGroupId) {
+  _pickerPendingWords = words || [];
+  _pickerTargetGroupId = targetGroupId || null;
   document.getElementById('group-picker-new-name').value = '';
+  document.getElementById('group-picker-title').textContent =
+    _pickerTargetGroupId ? '添加成员到符号组' : '加入符号组';
+
+  // In add-members mode with a target group: show a symbol search to pick which symbols to add
+  if (_pickerTargetGroupId) {
+    const g = DB.groups[_pickerTargetGroupId];
+    const available = Object.values(DB.symbols)
+      .filter(s => !g.words.includes(s.word) && !(DB.blocked||[]).includes(s.word))
+      .sort((a,b) => b.freq - a.freq);
+    document.getElementById('group-picker-list').innerHTML = available.length === 0
+      ? '<div style="color:var(--text-dim);font-size:.82rem;padding:.4rem 0">没有可添加的符号</div>'
+      : available.map(s => `
+        <div class="symbol-card" style="cursor:pointer;padding:.7rem 1rem"
+          onclick="pickerAddMember('${esc(s.word)}')">
+          <span>${esc(s.word)}</span>
+          <span style="font-size:.78rem;color:var(--text-dim)">${s.days || s.freq}d</span>
+        </div>`).join('');
+    document.getElementById('group-picker-modal').classList.add('open');
+    return;
+  }
+
+  // Normal mode: show existing groups to pick
   const groups = Object.values(DB.groups);
   const listEl = document.getElementById('group-picker-list');
   if (groups.length === 0) {
@@ -1287,6 +1339,16 @@ function openGroupPicker(words) {
     `).join('');
   }
   document.getElementById('group-picker-modal').classList.add('open');
+}
+
+function pickerAddMember(word) {
+  const g = DB.groups[_pickerTargetGroupId];
+  if (!g || g.words.includes(word)) return;
+  g.words.push(word);
+  save();
+  closeGroupPicker();
+  openGroup(_pickerTargetGroupId);
+  toast(`「${word}」已加入符号组「${g.name}」`);
 }
 
 function closeGroupPicker() {
@@ -1377,7 +1439,10 @@ function openGroup(groupId) {
 
   document.getElementById('group-detail-members').innerHTML = memberHtml ||
     '<div class="empty-state" style="padding:2rem">组内暂无符号</div>';
-  document.getElementById('group-detail-edit').onclick = function() { openGroupPicker([]); };
+  document.getElementById('group-detail-edit').onclick = function() {
+    // Open picker to add more symbols to this group
+    openGroupPicker([], groupId);
+  };
 
   showPage('group-detail');
 }
@@ -1446,27 +1511,45 @@ function openSymbol(word) {
        </div>`
     : '';
 
+  // Back button label depends on where we came from
+  const fromGroup = navHistory[navHistory.length - 1] === 'group-detail';
+  document.querySelector('#page-symbol-detail .back-btn').textContent =
+    fromGroup ? '← 返回符号组' : '← 返回符号志';
+  document.querySelector('#page-symbol-detail .back-btn').onclick =
+    fromGroup ? function() { history.go(-1); } : function() { showPage('symbols'); };
+
+  // All dates where the word appears (before manual exclusion), for toggle display
+  const excl = (DB.excluded || {})[word] || [];
+  const allDatesWithWord = Object.values(DB.entries)
+    .filter(e => countExclusive(word, e.content) > 0)
+    .map(e => e.date)
+    .sort((a, b) => b.localeCompare(a));
+
   const SEASON_ZH = { spring: '春', summer: '夏', autumn: '秋', winter: '冬' };
-  const groups = {};
-  for (const d of ex.dates) {
+  const monthGroups = {};
+  for (const d of allDatesWithWord) {
     const [y, mo] = d.split('.');
     const key = `${y}.${mo}`;
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(d);
+    if (!monthGroups[key]) monthGroups[key] = [];
+    monthGroups[key].push(d);
   }
 
   let html = groupBadge;
-  for (const [ym, dates] of Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]))) {
+  for (const [ym, dates] of Object.entries(monthGroups).sort((a, b) => b[0].localeCompare(a[0]))) {
     const [y, mo] = ym.split('.');
     const season = SEASON_ZH[getSeason(parseInt(mo))];
     html += `<div class="month-section">
       <div class="month-label">${y} 年 ${parseInt(mo)} 月 · ${season}</div>
       <div class="date-chips">
         ${dates.map(d => {
+          const isExcluded = excl.includes(d);
           const snippet = getContextSnippet(d, word);
-          return `<span class="chip-wrap">
-            <span class="date-chip" onclick="openEntryFromSymbol('${esc(d)}','${esc(word)}')">${d}</span>
-            ${snippet ? `<div class="ctx-tooltip">${snippet}</div>` : ''}
+          return `<span class="chip-wrap" style="${isExcluded ? 'opacity:.4' : ''}">
+            <span class="date-chip${isExcluded ? ' excluded-chip' : ''}"
+              onclick="openEntryFromSymbol('${esc(d)}','${esc(word)}')">${d}</span>
+            <span class="excl-toggle-btn" title="${isExcluded ? '重新计入' : '从计数排除'}"
+              onclick="event.stopPropagation();toggleExcludeDate('${esc(word)}','${esc(d)}')">${isExcluded ? '⊕' : '⊖'}</span>
+            ${snippet && !isExcluded ? `<div class="ctx-tooltip">${snippet}</div>` : ''}
           </span>`;
         }).join('')}
       </div>
@@ -1474,6 +1557,23 @@ function openSymbol(word) {
   }
   document.getElementById('detail-dates').innerHTML = html || '<div class="empty-state">互斥过滤后无有效出现</div>';
   showPage('symbol-detail');
+}
+
+function toggleExcludeDate(word, date) {
+  if (!DB.excluded) DB.excluded = {};
+  if (!DB.excluded[word]) DB.excluded[word] = [];
+  const idx = DB.excluded[word].indexOf(date);
+  if (idx === -1) {
+    DB.excluded[word].push(date);
+  } else {
+    DB.excluded[word].splice(idx, 1);
+    if (DB.excluded[word].length === 0) delete DB.excluded[word];
+  }
+  save();
+  // Refresh detail page stats and chips without full navigation
+  const ex = getExclusiveStats(word, null);
+  document.getElementById('detail-freq').textContent = `${ex.days} 天 · ${ex.freq} 次`;
+  openSymbol(word); // re-render chips with updated exclusion state
 }
 
 function addCurrentSymbolToGroup() {
@@ -1572,6 +1672,43 @@ function confirmEditDate() {
 // ══════════════════════════════════════════════════════
 // TIMELINE
 // ══════════════════════════════════════════════════════
+let _tlDeletePending = null;
+let _tlDeleteTimer = null;
+
+function tlDeleteClick(date, el) {
+  if (_tlDeletePending === date) {
+    // Second click — confirm
+    clearTimeout(_tlDeleteTimer);
+    _tlDeletePending = null;
+    deleteEntry(date);
+  } else {
+    // First click — arm
+    if (_tlDeletePending && _tlDeleteTimer) {
+      clearTimeout(_tlDeleteTimer);
+      const prev = document.querySelector(`.tl-delete-btn[data-date="${_tlDeletePending}"]`);
+      if (prev) { prev.textContent = '删除'; prev.classList.remove('armed'); }
+    }
+    _tlDeletePending = date;
+    el.textContent = '确认';
+    el.classList.add('armed');
+    _tlDeleteTimer = setTimeout(function() {
+      el.textContent = '删除'; el.classList.remove('armed');
+      _tlDeletePending = null;
+    }, 3000);
+  }
+}
+
+function deleteEntry(date) {
+  delete DB.entries[date];
+  // Remove date from all symbol records
+  for (const sym of Object.values(DB.symbols)) {
+    sym.dates = sym.dates.filter(d => d !== date);
+  }
+  rebuildSymbols();
+  save(); renderDashboard(); renderTimeline();
+  toast(`${date} 已删除`);
+}
+
 function renderTimeline() {
   const entries = Object.values(DB.entries).sort((a, b) => b.date.localeCompare(a.date));
   if (entries.length === 0) {
@@ -1589,9 +1726,10 @@ function renderTimeline() {
       if (lastMonth !== null) html += `<div class="tl-month-divider"></div>`;
       lastMonth = e.month;
     }
-    html += `<div class="tl-entry" onclick="openEntry('${e.date}')">
-      <div class="tl-date">${e.date}</div>
-      <div class="tl-preview">${esc(e.content.slice(0, 150))}</div>
+    html += `<div class="tl-entry">
+      <div class="tl-date" onclick="openEntry('${e.date}')" style="cursor:pointer">${e.date}</div>
+      <div class="tl-preview" onclick="openEntry('${e.date}')" style="cursor:pointer">${esc(e.content.slice(0, 150))}</div>
+      <button class="tl-delete-btn" data-date="${e.date}" onclick="event.stopPropagation();tlDeleteClick('${e.date}',this)">删除</button>
     </div>`;
   }
   document.getElementById('timeline-list').innerHTML = html;
@@ -1653,7 +1791,7 @@ function rebuildAndRefresh() {
 
 function clearAllData() {
   if (!confirm('确定要清除所有本地数据吗？此操作无法撤销。\n建议先导出备份。')) return;
-  DB = { entries: {}, symbols: {}, blocked: [], starred: [], groups: {} };
+  DB = { entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {} };
   localStorage.removeItem(STORAGE_KEY);
   showPage('landing', false);
   navHistory = [];
@@ -1738,6 +1876,7 @@ function handleImport(e) {
       if (data.blocked) DB.blocked = [...new Set([...(DB.blocked || []), ...data.blocked])];
       if (data.starred) DB.starred = [...new Set([...(DB.starred || []), ...data.starred])];
       if (data.groups) DB.groups = Object.assign({}, DB.groups, data.groups);
+      if (data.excluded) DB.excluded = Object.assign({}, DB.excluded, data.excluded);
       rebuildSymbols();
       save();
       populateFilters(); renderDashboard(); renderTimeline();
