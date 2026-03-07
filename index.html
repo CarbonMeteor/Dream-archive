@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>梦境志 · Dream Archive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #05060f;
+    --bg2:       #0b0d1a;
+    --bg3:       #111428;
+    --border:    rgba(140,160,210,0.13);
+    --text:      #ddd8cc;
+    --text-dim:  #8a8880;
+    --moon:      #b8c8e8;
+    --gold:      #c9b68a;
+    --red:       #c97a7a;
+    --glow:      rgba(120,150,220,0.18);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Serif SC', serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── NOISE OVERLAY ─── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.5;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 2rem;
+    height: 56px;
+    background: rgba(5,6,15,0.88);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.35rem;
+    font-style: italic;
+    letter-spacing: .12em;
+    color: var(--moon);
+    cursor: pointer;
+    user-select: none;
+  }
+  .nav-logo span { color: var(--gold); font-style: normal; }
+
+  .nav-links { display: flex; gap: .2rem; align-items: center; }
+  .nav-btn {
+    background: none; border: none;
+    color: var(--text-dim); font-family: 'Noto Serif SC', serif;
+    font-size: .82rem; padding: .45rem .9rem;
+    cursor: pointer; border-radius: 4px;
+    transition: all .2s;
+    letter-spacing: .04em;
+  }
+  .nav-btn:hover, .nav-btn.active { color: var(--moon); background: var(--glow); }
+  .nav-sep { width: 1px; height: 18px; background: var(--border); margin: 0 .4rem; }
+
+  /* ─── MAIN LAYOUT ─── */
+  main {
+    flex: 1;
+    margin-top: 56px;
+    padding: 2.5rem 2rem;
+    max-width: 1100px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative; z-index: 1;
+  }
+
+  /* ─── PAGE SECTIONS ─── */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ─── LANDING ─── */
+  #page-landing {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: calc(100vh - 120px);
+    text-align: center; gap: 2rem;
+  }
+  #page-landing.active { display: flex; }
+
+  .landing-moon {
+    font-size: 4rem; line-height: 1;
+    filter: drop-shadow(0 0 24px rgba(180,200,240,0.4));
+  }
+
+  .landing-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 3.2rem; font-weight: 300;
+    color: var(--moon);
+    letter-spacing: .2em;
+    line-height: 1.2;
+  }
+  .landing-title em { font-style: italic; color: var(--gold); }
+
+  .landing-sub {
+    font-size: .88rem; color: var(--text-dim);
+    letter-spacing: .08em; line-height: 1.8;
+  }
+
+  .landing-actions { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+
+  .btn-primary {
+    padding: .7rem 1.8rem;
+    background: linear-gradient(135deg, rgba(140,160,220,0.18), rgba(100,120,180,0.08));
+    border: 1px solid rgba(140,160,220,0.35);
+    color: var(--moon); border-radius: 6px;
+    cursor: pointer; font-family: 'Noto Serif SC', serif;
+    font-size: .88rem; letter-spacing: .06em;
+    transition: all .25s;
+  }
+  .btn-primary:hover { background: rgba(140,160,220,0.28); border-color: var(--moon); }
+
+  .btn-secondary {
+    padding: .7rem 1.8rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim); border-radius: 6px;
+    cursor: pointer; font-family: 'Noto Serif SC', serif;
+    font-size: .88rem; letter-spacing: .06em;
+    transition: all .25s;
+  }
+  .btn-secondary:hover { border-color: var(--text-dim); color: var(--text); }
+
+  /* ─── PASTE MODAL ─── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(3,4,12,0.82); backdrop-filter: blur(6px);
+    z-index: 200; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    width: min(680px, 94vw);
+    max-height: 90vh;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 1.2rem;
+  }
+  .modal h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.4rem; color: var(--moon);
+    font-weight: 300; letter-spacing: .1em;
+  }
+  .modal-meta {
+    font-size: .78rem; color: var(--text-dim); line-height: 1.7;
+  }
+  .modal textarea {
+    width: 100%; height: 280px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px; padding: 1rem;
+    color: var(--text); font-family: 'Noto Serif SC', serif;
+    font-size: .82rem; line-height: 1.8; resize: vertical;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .modal textarea:focus { border-color: rgba(140,160,220,0.45); }
+  .modal-actions { display: flex; gap: .8rem; justify-content: flex-end; }
+
+  /* ─── DASHBOARD ─── */
+  .dash-header {
+    margin-bottom: 2rem;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.2rem;
+  }
+  .dash-header h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2rem; font-weight: 300;
+    color: var(--moon); letter-spacing: .12em;
+  }
+  .dash-date { font-size: .8rem; color: var(--text-dim); letter-spacing: .08em; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem; margin-bottom: 2.5rem;
+  }
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.2rem 1.4rem;
+    transition: border-color .2s;
+  }
+  .stat-card:hover { border-color: rgba(140,160,220,0.3); }
+  .stat-val {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.4rem; color: var(--moon);
+    line-height: 1; margin-bottom: .4rem;
+  }
+  .stat-label { font-size: .75rem; color: var(--text-dim); letter-spacing: .08em; }
+
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.2rem; color: var(--gold);
+    letter-spacing: .1em; font-weight: 300;
+    margin-bottom: 1.2rem;
+    display: flex; align-items: center; gap: .8rem;
+  }
+  .section-title::after {
+    content: ''; flex: 1;
+    height: 1px; background: var(--border);
+  }
+
+  /* ─── SYMBOL INDEX ─── */
+  .filter-bar {
+    display: flex; flex-wrap: wrap; gap: .6rem;
+    margin-bottom: 1.5rem; align-items: center;
+  }
+  .filter-bar select, .filter-bar input {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text); border-radius: 5px;
+    padding: .45rem .8rem;
+    font-family: 'Noto Serif SC', serif;
+    font-size: .82rem; outline: none;
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+  .filter-bar select:focus, .filter-bar input:focus {
+    border-color: rgba(140,160,220,0.45);
+  }
+  .filter-bar input { min-width: 160px; }
+  .filter-bar label { font-size: .8rem; color: var(--text-dim); }
+
+  .filter-chip {
+    padding: .35rem .8rem;
+    border: 1px solid var(--border);
+    border-radius: 20px; background: transparent;
+    color: var(--text-dim); font-size: .78rem;
+    cursor: pointer; transition: all .2s;
+    font-family: 'Noto Serif SC', serif;
+    letter-spacing: .04em;
+  }
+  .filter-chip:hover, .filter-chip.active {
+    border-color: rgba(140,160,220,0.5);
+    background: var(--glow); color: var(--moon);
+  }
+
+  .symbols-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: .8rem;
+  }
+  .symbol-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px; padding: 1rem 1.2rem;
+    cursor: pointer; transition: all .22s;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .symbol-card:hover {
+    border-color: rgba(140,160,220,0.4);
+    background: var(--bg3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(100,130,200,0.08);
+  }
+  .symbol-word { font-size: 1rem; letter-spacing: .04em; }
+  .symbol-count {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.2rem; color: var(--moon); opacity: .7;
+  }
+
+  /* ─── SYMBOL DETAIL ─── */
+  .back-btn {
+    display: inline-flex; align-items: center; gap: .5rem;
+    background: none; border: none;
+    color: var(--text-dim); cursor: pointer;
+    font-family: 'Noto Serif SC', serif;
+    font-size: .82rem; letter-spacing: .04em;
+    margin-bottom: 1.5rem;
+    transition: color .2s;
+  }
+  .back-btn:hover { color: var(--moon); }
+
+  .detail-header {
+    margin-bottom: 2rem;
+    display: flex; align-items: baseline; gap: 1.5rem;
+  }
+  .detail-word {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.8rem; color: var(--moon);
+    font-weight: 300; letter-spacing: .15em;
+  }
+  .detail-freq { font-size: .9rem; color: var(--text-dim); }
+
+  .month-section { margin-bottom: 1.5rem; }
+  .month-label {
+    font-size: .78rem; color: var(--gold);
+    letter-spacing: .12em; margin-bottom: .6rem;
+    font-weight: 400;
+  }
+  .date-chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .date-chip {
+    padding: .4rem .9rem;
+    border: 1px solid var(--border);
+    border-radius: 20px; background: var(--bg2);
+    color: var(--text-dim); font-size: .8rem;
+    cursor: pointer; transition: all .2s;
+    letter-spacing: .04em;
+  }
+  .date-chip:hover {
+    border-color: rgba(140,160,220,0.5);
+    color: var(--moon); background: var(--glow);
+  }
+
+  .block-btn {
+    color: var(--text-dim); font-size: .7rem;
+    opacity: 0; transition: opacity .15s;
+    padding: .2rem .3rem; border-radius: 3px;
+    cursor: pointer;
+  }
+  .symbol-card:hover .block-btn { opacity: 1; }
+  .block-btn:hover { color: var(--red); background: rgba(200,120,120,0.12); }
+
+  .blocked-chip {
+    padding: .35rem .8rem;
+    border: 1px dashed rgba(140,160,220,0.2);
+    border-radius: 20px; background: transparent;
+    color: var(--text-dim); font-size: .78rem;
+    cursor: pointer; transition: all .2s;
+    font-family: 'Noto Serif SC', serif;
+  }
+  .blocked-chip:hover { border-color: var(--moon); color: var(--moon); }
+  .chip-wrap { position: relative; display: inline-block; }
+  .ctx-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%; transform: translateX(-50%);
+    width: 320px;
+    background: var(--bg3);
+    border: 1px solid rgba(140,160,220,0.28);
+    border-radius: 8px;
+    padding: .85rem 1rem;
+    font-size: .8rem; line-height: 1.85;
+    color: var(--text);
+    z-index: 300;
+    pointer-events: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .ctx-tooltip::after {
+    content: '';
+    position: absolute; top: 100%; left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(140,160,220,0.28);
+  }
+  .ctx-tooltip .ctx-hl {
+    background: rgba(140,160,220,0.22);
+    border-bottom: 1px solid rgba(140,160,220,0.55);
+    border-radius: 2px; padding: 0 2px;
+    color: var(--moon);
+  }
+  .chip-wrap:hover .ctx-tooltip { display: block; }
+
+  /* ─── ENTRY VIEW ─── */
+  .entry-meta {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.6rem; color: var(--moon);
+    letter-spacing: .15em; font-weight: 300;
+    margin-bottom: .5rem;
+  }
+  .entry-season {
+    font-size: .78rem; color: var(--text-dim);
+    letter-spacing: .1em; margin-bottom: 2rem;
+  }
+  .entry-body {
+    font-size: .92rem; line-height: 2.1;
+    color: var(--text); max-width: 720px;
+    white-space: pre-wrap;
+  }
+  .entry-body .highlight {
+    background: rgba(140,160,220,0.18);
+    border-bottom: 1px solid rgba(140,160,220,0.45);
+    border-radius: 2px;
+    padding: 0 2px;
+  }
+
+  /* ─── TIMELINE ─── */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl-entry {
+    display: flex; gap: 1.5rem;
+    padding: .8rem 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background .18s;
+    border-radius: 4px; padding: .7rem .8rem;
+    margin: 0 -.8rem;
+  }
+  .tl-entry:hover { background: var(--bg2); }
+  .tl-date {
+    min-width: 88px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: .95rem; color: var(--moon);
+    letter-spacing: .06em; padding-top: .1rem;
+  }
+  .tl-preview {
+    font-size: .82rem; color: var(--text-dim);
+    line-height: 1.7; overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  /* ─── TOASTS ─── */
+  .toast {
+    position: fixed; bottom: 2rem; right: 2rem;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: .9rem 1.4rem;
+    color: var(--text); font-size: .84rem;
+    z-index: 999; opacity: 0;
+    transform: translateY(8px);
+    transition: all .3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ─── EMPTY STATE ─── */
+  .empty-state {
+    text-align: center; padding: 4rem 2rem;
+    color: var(--text-dim); font-size: .88rem;
+    line-height: 2;
+  }
+
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(140,160,220,0.2); border-radius: 3px; }
+
+  /* ─── SORT BAR ─── */
+  .sort-row {
+    display: flex; align-items: center; gap: 1rem;
+    margin-bottom: 1rem; font-size: .78rem; color: var(--text-dim);
+  }
+  .sort-row span { letter-spacing: .06em; }
+  .sort-opt {
+    cursor: pointer; padding: .3rem .7rem;
+    border-radius: 4px; transition: all .18s;
+    letter-spacing: .04em;
+  }
+  .sort-opt:hover, .sort-opt.active { color: var(--moon); background: var(--glow); }
+
+  /* ─── FREQ BAR ─── */
+  .freq-bar-wrap { margin-bottom: .4rem; }
+  .freq-bar {
+    height: 2px; background: linear-gradient(90deg, var(--moon), transparent);
+    border-radius: 1px; opacity: .35;
+    transition: width .3s;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── NAV ────────────────────────────────────── -->
+<nav>
+  <div class="nav-logo" onclick="showPage('dashboard')">梦境志 <span>·</span> Dream Archive</div>
+  <div class="nav-links">
+    <button class="nav-btn" onclick="showPage('dashboard')" data-page="dashboard">总览</button>
+    <button class="nav-btn" onclick="showPage('symbols')" data-page="symbols">符号志</button>
+    <button class="nav-btn" onclick="showPage('timeline')" data-page="timeline">时间线</button>
+    <div class="nav-sep"></div>
+    <button class="nav-btn" onclick="openPasteModal()">＋ 导入文本</button>
+    <button class="nav-btn" onclick="importJSON()">导入备份</button>
+    <button class="nav-btn" onclick="exportJSON()">导出备份</button>
+    <div class="nav-sep"></div>
+    <button class="nav-btn" onclick="rebuildAndRefresh()" title="用当前词典重新分析所有记录">重新分析</button>
+    <button class="nav-btn" style="color:var(--red)" onclick="clearAllData()">清除数据</button>
+  </div>
+</nav>
+
+<!-- ── LANDING ────────────────────────────────── -->
+<main>
+
+<div id="page-landing" class="page active">
+  <div class="landing-moon">🌙</div>
+  <div class="landing-title">梦境志<br><em>Dream Archive</em></div>
+  <p class="landing-sub">梦境记录归档 · 词频统计 · 意象溯源</p>
+  <div class="landing-actions">
+    <button class="btn-primary" onclick="openPasteModal()">粘贴梦境文本</button>
+    <button class="btn-secondary" onclick="importJSON()">导入已有备份</button>
+  </div>
+  <p style="font-size:.76rem;color:var(--text-dim);letter-spacing:.06em">
+    所有数据仅存储于本地浏览器 · 不上传至任何服务器
+  </p>
+</div>
+
+<!-- ── DASHBOARD ──────────────────────────────── -->
+<div id="page-dashboard" class="page">
+  <div class="dash-header">
+    <h1>总览</h1>
+    <span class="dash-date" id="dash-range"></span>
+  </div>
+  <div class="stats-grid" id="stats-grid"></div>
+  <div class="section-title">最高频符号</div>
+  <div id="dash-top-symbols" class="symbols-grid"></div>
+  <div style="margin-top:2.5rem" class="section-title">最近记录</div>
+  <div id="dash-recent" class="timeline"></div>
+</div>
+
+<!-- ── SYMBOLS ────────────────────────────────── -->
+<div id="page-symbols" class="page">
+  <div class="dash-header">
+    <h1>符号志</h1>
+    <span class="dash-date" id="sym-count-label"></span>
+  </div>
+
+  <!-- 自定义词语检索 -->
+  <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;">
+    <span style="font-size:.78rem;color:var(--text-dim);letter-spacing:.06em;white-space:nowrap">自定义检索</span>
+    <input type="text" id="custom-word-input" placeholder="输入任意词，在全部记录中搜索…"
+      style="flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'Noto Serif SC',serif;font-size:.88rem;"
+      onkeydown="if(event.key==='Enter')searchCustomWord()">
+    <button class="btn-primary" style="padding:.4rem 1rem;font-size:.8rem" onclick="searchCustomWord()">检索</button>
+  </div>
+  <div id="custom-search-result" style="display:none;margin-bottom:1.6rem;padding:1rem 1.2rem;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:.84rem;line-height:1.9;"></div>
+
+  <div class="filter-bar">
+    <input type="text" id="sym-search" placeholder="筛选已有符号…" oninput="renderSymbols()">
+    <select id="sym-year" onchange="renderSymbols()"><option value="">全部年份</option></select>
+    <select id="sym-month" onchange="renderSymbols()"><option value="">全部月份</option></select>
+    <button class="filter-chip" data-season="" onclick="setSeason(this)">全年</button>
+    <button class="filter-chip" data-season="spring" onclick="setSeason(this)">春</button>
+    <button class="filter-chip" data-season="summer" onclick="setSeason(this)">夏</button>
+    <button class="filter-chip" data-season="autumn" onclick="setSeason(this)">秋</button>
+    <button class="filter-chip" data-season="winter" onclick="setSeason(this)">冬</button>
+  </div>
+  <div class="sort-row">
+    <span>排序：</span>
+    <span class="sort-opt active" data-sort="freq" onclick="setSort(this)">频率</span>
+    <span class="sort-opt" data-sort="alpha" onclick="setSort(this)">笔画</span>
+    <span class="sort-opt" data-sort="recent" onclick="setSort(this)">最近出现</span>
+    <span style="flex:1"></span>
+    <span id="excl-toggle" class="sort-opt" onclick="toggleExclusion()" title="开启后，若符号库中存在包含关系（如"青"与"青年"），较短符号将排除被较长符号覆盖的出现">符号互斥 <span id="excl-indicator" style="color:var(--text-dim)">○</span></span>
+  </div>
+  <div id="symbols-grid" class="symbols-grid"></div>
+
+  <!-- 已屏蔽符号 -->
+  <div id="blocked-panel" style="display:none;margin-top:2rem">
+    <div class="section-title">已屏蔽</div>
+    <div id="blocked-chips" style="display:flex;flex-wrap:wrap;gap:.5rem"></div>
+  </div>
+</div>
+
+<!-- ── SYMBOL DETAIL ──────────────────────────── -->
+<div id="page-symbol-detail" class="page">
+  <button class="back-btn" onclick="showPage('symbols')">← 返回符号志</button>
+  <div class="detail-header">
+    <div class="detail-word" id="detail-word"></div>
+    <div class="detail-freq" id="detail-freq"></div>
+  </div>
+  <div id="detail-dates"></div>
+</div>
+
+<!-- ── ENTRY VIEW ──────────────────────────────── -->
+<div id="page-entry" class="page">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+    <button class="back-btn" id="entry-back" onclick="history.go(-1)" style="margin-bottom:0">← 返回</button>
+    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .9rem" onclick="openEditDate()">修改日期</button>
+  </div>
+  <div class="entry-meta" id="entry-date"></div>
+  <div class="entry-season" id="entry-season"></div>
+  <div class="entry-body" id="entry-body"></div>
+</div>
+
+<!-- ── TIMELINE ────────────────────────────────── -->
+<div id="page-timeline" class="page">
+  <div class="dash-header">
+    <h1>时间线</h1>
+  </div>
+  <div id="timeline-list" class="timeline"></div>
+</div>
+
+</main>
+
+<!-- ── PASTE MODAL ─────────────────────────────── -->
+<div class="modal-overlay" id="paste-modal">
+  <div class="modal">
+    <h2>导入梦境文本</h2>
+    <p class="modal-meta">
+      格式：以 <strong>yyyy.mm.dd</strong> 开头每条记录，不同日期之间用 <strong>***</strong> 分隔。<br>
+      一次可粘贴一整个月或多个月的内容，也可多次导入，数据会累积不覆盖。
+    </p>
+    <textarea id="paste-area" placeholder="2024.03.15
+今晚我梦见了…
+
+***
+
+2024.03.22
+又是那片海…"></textarea>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closePasteModal()">取消</button>
+      <button class="btn-primary" onclick="processPaste()">解析并归档</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
+<div class="toast" id="toast"></div>
+
+<!-- ── EDIT DATE MODAL ──────────────────────────── -->
+<div class="modal-overlay" id="edit-date-modal">
+  <div class="modal" style="max-width:360px">
+    <h2>修改日期</h2>
+    <p class="modal-meta">当前：<span id="edit-date-current" style="color:var(--moon)"></span></p>
+    <input type="text" id="edit-date-input"
+      placeholder="yyyy.mm.dd"
+      style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:.8rem 1rem;color:var(--text);font-family:'Noto Serif SC',serif;font-size:1rem;outline:none;letter-spacing:.08em"
+      onkeydown="if(event.key==='Enter')confirmEditDate()">
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeEditDateModal()">取消</button>
+      <button class="btn-primary" onclick="confirmEditDate()">确认</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════
+const STORAGE_KEY = 'dreamarchive_v2';
+let DB = { entries: {}, symbols: {}, blocked: [] };
+let navHistory = [];
+let currentSymbolSort = 'freq';
+let currentSeason = '';
+let exclusionMode = false;
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
+}
+function load() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) DB = JSON.parse(raw);
+}
+
+// ══════════════════════════════════════════════════════
+// PARSING
+// ══════════════════════════════════════════════════════
+function parseDreamText(text) {
+  const blocks = text.split(/\*{3,}/).map(b => b.trim()).filter(Boolean);
+  let added = 0;
+  for (const block of blocks) {
+    const dateMatch = block.match(/^(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})/);
+    if (!dateMatch) continue;
+    const year = parseInt(dateMatch[1]);
+    const month = parseInt(dateMatch[2]);
+    const day = parseInt(dateMatch[3]);
+    const dateKey = `${year}.${String(month).padStart(2,'0')}.${String(day).padStart(2,'0')}`;
+    const content = block.replace(/^(\d{4})[.\-/]\d{1,2}[.\-/]\d{1,2}\s*/, '').trim();
+    if (!content) continue;
+    const season = getSeason(month);
+    DB.entries[dateKey] = { date: dateKey, content, year, month, day, season };
+    added++;
+  }
+  if (added > 0) {
+    rebuildSymbols();
+    save();
+  }
+  return added;
+}
+
+function getSeason(month) {
+  if ([3,4,5].includes(month)) return 'spring';
+  if ([6,7,8].includes(month)) return 'summer';
+  if ([9,10,11].includes(month)) return 'autumn';
+  return 'winter';
+}
+
+// ══════════════════════════════════════════════════════
+// TOKENIZATION — 内嵌词典 + 最大正向匹配 (完全离线)
+// ══════════════════════════════════════════════════════
+
+// ── 停用词（单字功能词，对梦境分析无意义）──
+const STOP_ZH = new Set('的了是在我你他她它们这那有不也都就但和或又与及么呢吧啊哦嗯把被对从到要会能可得地着过里中上下一二三四五六七八九十个很非太最更还再已却其之于以为而如若虽因所当将则后前没什么这样那样所以然后然而因为虽然但是如果只是就是还是因此啊吗哈嘛哟喔唉哎哇嗯呀嘿哼哦呵'.split(''));
+const STOP_EN = new Set('i me my we our you your he she it they them the a an is was are were be been being have has had do does did will would could should may might shall need dare ought used to at of in on by for with from about into over after before up down out off through between while when where how what who whom which why that because so then now here there all some any one two but not no nor yet both either neither each every few more most other than such same well just than'.split(' '));
+
+// ── 内嵌中文词典（约2600词，最大正向匹配用）──
+// 涵盖：日常生活、情绪、人际、身体、自然、空间、梦境常见意象
+const DICT_RAW = `
+人们|人群|人物|人影|人声|人形|人物|人类|男人|女人|老人|小孩|孩子|男孩|女孩|婴儿|少年|少女|青年|老者|陌生人|陌生|熟人|朋友|亲人|家人|父亲|母亲|爸爸|妈妈|父母|兄弟|姐妹|兄长|弟弟|姐姐|妹妹|祖父|祖母|爷爷|奶奶|外公|外婆|丈夫|妻子|恋人|情人|爱人|同学|老师|同事|邻居|医生|护士|警察|士兵|国王|女王|皇帝|将军|神明|天使|恶魔|鬼魂|幽灵|怪物|巨人|侏儒|向导|追兵|刺客|陌客
+身体|眼睛|眼眸|眼神|目光|手掌|双手|双脚|脚步|面孔|脸庞|嘴唇|嘴巴|牙齿|头发|皮肤|骨头|血液|心脏|大脑|脊背|肩膀|手臂|手指|腿脚|额头|耳朵|鼻子|喉咙|胸口|腹部|背部|影子|倒影|伤口|伤疤|血迹
+情绪|恐惧|害怕|惊恐|惊慌|惊吓|恐慌|焦虑|不安|担忧|忧虑|悲伤|哀愁|悲痛|痛苦|绝望|孤独|寂寞|孤寂|压抑|压力|窒息|迷茫|困惑|迷失|茫然|愤怒|愤恨|仇恨|怒火|暴怒|喜悦|快乐|幸福|安心|平静|温暖|感动|激动|兴奋|期待|渴望|思念|怀念|遗憾|羞愧|愧疚|内疚|懊悔|嫉妒|嫉恨|嫌恶|厌恶|无助|无力|疲惫|疲倦|麻木|冷漠|冷静|慌乱|慌张|震惊|诧异|惊讶|好奇|迷恋|执着
+奔跑|跑步|行走|飞行|飞翔|坠落|下坠|坠入|漂浮|漂流|沉没|沉入|逃跑|逃离|躲避|追逐|追赶|挣扎|徘徊|漫游|迷路|寻找|失去|离开|回归|返回|前行|后退|进入|走进|走出|穿越|穿过|跌落|爬行|蹲下|站立|倒地|消失|出现|隐藏|暴露|靠近|远离|分离|相遇|重逢|告别
+房间|卧室|客厅|厨房|浴室|走廊|楼梯|阁楼|地下室|密室|暗室|储藏室|书房|会议室|教室|图书馆|医院|手术室|监狱|牢房|城堡|宫殿|庙宇|寺庙|教堂|废墟|旧屋|老宅|家门|院子|花园|天井|屋顶|阳台|窗户|门口|门缝|门锁|楼道|电梯|地铁|车站|火车站|机场|港口|市场|街道|小巷|广场|操场|公园|学校|办公室|仓库|工厂|地牢|迷宫|通道|出口|入口|边界|围墙
+自然|天空|大地|海洋|山脉|河流|湖泊|森林|树林|草原|沙漠|雪地|冰原|洞穴|悬崖|峭壁|深渊|山顶|山谷|峡谷|平原|旷野|田野|荒野|荒地|废土|黑暗|黑夜|黎明|黄昏|日落|日出|夜晚|白天|正午|深夜|午夜|破晓|薄暮|暮色|晨光|阳光|月光|星光|灯光|火光|闪电|雷声|暴风|风雨|狂风|雨水|大雨|暴雨|细雨|浓雾|白雾|迷雾|霜冻|积雪|暴雪|尘埃|烟雾|火焰|大火|烈火|余烬|废墟
+月亮|月光|月色|满月|新月|弦月|月影|太阳|阳光|星星|星空|繁星|流星|彗星|行星|星云|宇宙|银河|夜空|云层|乌云|积云|彩虹|极光|晨霞|晚霞
+水流|河水|湖水|海水|波浪|浪潮|潮汐|漩涡|水面|水底|深水|浅水|清水|浊水|洪水|泥水|冰水|雨水|泉水|瀑布|深海|远洋|溪流|小溪|河岸|湖边|岸边|彼岸
+树木|大树|枯树|老树|树根|树枝|树叶|落叶|枯叶|绿叶|花朵|花瓣|花园|花海|野草|荒草|藤蔓|荆棘|玫瑰|莲花|菊花|梅花|桃花|枫叶|竹林|草地|苔藓|蘑菇
+动物|猫咪|黑猫|白猫|狗狗|老狗|老鼠|白兔|乌鸦|白鸽|老鹰|凤凰|龙|蛇|巨蟒|蜘蛛|蝴蝶|飞蛾|蚂蚁|蜜蜂|鱼群|大鱼|鲸鱼|鲨鱼|章鱼|水母|骏马|黑马|白马|老虎|狮子|熊|狼群|野狼|狐狸|鹿|独角兽|翼龙
+声音|沉默|寂静|喧嚣|噪音|哭声|笑声|呼喊|叫声|哀嚎|低语|耳语|回声|脚步声|心跳声|风声|水声|雨声|雷声|爆炸声|玻璃破碎|警报声|音乐声|钟声|铃声
+光明|黑暗|阴影|光束|光芒|强光|刺眼|昏暗|幽暗|朦胧|清晰|模糊|扭曲|变形|透明|半透明|发光|闪烁|消散|凝固|膨胀|收缩|旋转|震动|坍塌|爆炸|破碎|融化|燃烧|冻结
+梦境|现实|梦中|梦里|意识|潜意识|记忆|遗忘|清醒|昏迷|睡眠|噩梦|幻觉|幻象|异象|预感|预兆|直觉|感知|感觉|意识到|意识流|时间|空间|时空|平行|循环|重复|倒退|错乱|混沌|秩序|真实|虚幻|幻境|异界|另一个世界
+门窗|铁门|木门|玻璃门|旋转门|密封门|暗门|窗帘|窗格|铁窗|破窗|镜子|镜像|镜中|镜面|玻璃|碎片|碎玻璃|裂缝|洞口|隧道|入口|出口|深处|尽头|边缘|界限
+武器|刀刃|利刃|匕首|长剑|弓箭|枪支|手枪|步枪|炸弹|爆炸物|锁链|绳子|陷阱|铁笼|围栏|高墙|铁丝|荆棘|毒药
+交通|汽车|火车|飞机|轮船|渡船|小船|独木舟|摩托车|自行车|列车|高铁|地铁|公交|缆车|热气球|直升机|降落伞
+颜色|红色|深红|血红|玫红|橙色|金黄|黄色|绿色|墨绿|深绿|蓝色|深蓝|天蓝|湛蓝|紫色|深紫|淡紫|黑色|漆黑|纯黑|白色|洁白|灰色|深灰|银色|金色|铜色|棕色|土黄
+数字|第一|第二|唯一|无数|无尽|无边|无限|无穷|再次|再一次|又一次|最后|终于|终点|起点|开始|结束|永远|瞬间|短暂|漫长|迫切
+`.trim();
+
+// 构建词典 Set（按长度分桶，供 MMF 使用）
+const DICT = new Set(DICT_RAW.split(/[|\n]+/).map(w=>w.trim()).filter(w=>w.length>=2));
+const MAX_WORD_LEN = 6;
+
+// ── 最大正向匹配分词 ──
+function segmentZH(text) {
+  const tokens = [];
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    // 非中文字符，跳过
+    if (!/[\u4e00-\u9fa5]/.test(ch)) { i++; continue; }
+    let matched = false;
+    // 从最长到最短尝试匹配
+    for (let len = Math.min(MAX_WORD_LEN, text.length - i); len >= 2; len--) {
+      const word = text.slice(i, i + len);
+      // 检查 word 每个字都是中文
+      if (!/^[\u4e00-\u9fa5]+$/.test(word)) continue;
+      if (DICT.has(word)) {
+        tokens.push(word);
+        i += len;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      // 单字不收录——单字几乎不构成有意义的梦境意象
+      i++;
+    }
+  }
+  return tokens;
+}
+
+function tokenize(text) {
+  const tokens = [];
+  // 中文分词（最大正向匹配）
+  const zhSegs = text.match(/[\u4e00-\u9fa5，。！？、；：""''（）【】…—\s]+/g) || [];
+  for (const seg of zhSegs) {
+    const pure = seg.replace(/[^\u4e00-\u9fa5]/g, ' ');
+    for (const chunk of pure.split(/\s+/).filter(Boolean)) {
+      tokens.push(...segmentZH(chunk));
+    }
+  }
+  // 英文词
+  const enSegs = text.toLowerCase().match(/[a-z]{3,}/g) || [];
+  for (const w of enSegs) {
+    if (!STOP_EN.has(w)) tokens.push(w);
+  }
+  return tokens;
+}
+
+function rebuildSymbols() {
+  // word -> {freq, dates: Set}
+  const freq = {};
+  for (const entry of Object.values(DB.entries)) {
+    const seen = new Set();
+    const tokens = tokenize(entry.content);
+    for (const tok of tokens) {
+      if (!freq[tok]) freq[tok] = { freq: 0, dates: [] };
+      freq[tok].freq++;
+      if (!seen.has(tok)) { freq[tok].dates.push(entry.date); seen.add(tok); }
+    }
+  }
+  // 只保留2字以上、出现≥3次的词；单字一律排除
+  const candidates = Object.entries(freq).filter(([w,v]) => w.length >= 2 && v.freq >= 3);
+  // Remove shorter tokens that are substrings of a higher-freq longer token
+  const words = candidates.map(([w]) => w).sort((a,b) => b.length - a.length);
+  const keep = new Set();
+  for (const w of words) {
+    const dominated = [...keep].some(k => k.includes(w) && freq[k].freq >= freq[w].freq * 0.6);
+    if (!dominated) keep.add(w);
+  }
+  DB.symbols = {};
+  for (const [w, v] of candidates) {
+    if (!keep.has(w)) continue;
+    v.dates.sort((a,b) => b.localeCompare(a));
+    DB.symbols[w] = { word: w, freq: v.freq, days: v.dates.length, dates: v.dates };
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════
+function showPage(id, pushHistory = true) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.querySelectorAll('.nav-btn[data-page]').forEach(b => {
+    b.classList.toggle('active', b.dataset.page === id);
+  });
+  if (pushHistory && (navHistory[navHistory.length-1] !== id)) navHistory.push(id);
+  window.scrollTo(0,0);
+}
+
+function goBack(defaultPage) {
+  navHistory.pop();
+  const prev = navHistory[navHistory.length-1] || defaultPage;
+  showPage(prev, false);
+}
+
+// Override history.go(-1) for SPA
+window.history.go = (n) => {
+  if (n === -1) {
+    navHistory.pop();
+    const prev = navHistory[navHistory.length-1] || 'symbols';
+    showPage(prev, false);
+  }
+};
+
+// ══════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════
+function renderDashboard() {
+  const entries = Object.values(DB.entries).sort((a,b) => b.date.localeCompare(a.date));
+  const symbols = Object.values(DB.symbols);
+  if (entries.length === 0) return;
+
+  const years = [...new Set(entries.map(e => e.year))];
+  const dateRange = entries.length
+    ? `${entries[entries.length-1].date} — ${entries[0].date}`
+    : '';
+  document.getElementById('dash-range').textContent = dateRange;
+
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card"><div class="stat-val">${entries.length}</div><div class="stat-label">梦境记录</div></div>
+    <div class="stat-card"><div class="stat-val">${symbols.length}</div><div class="stat-label">提取符号</div></div>
+    <div class="stat-card"><div class="stat-val">${[...new Set(entries.map(e=>e.year+'.'+String(e.month).padStart(2,'0')))].length}</div><div class="stat-label">跨越月份</div></div>
+    <div class="stat-card"><div class="stat-val">${years.length}</div><div class="stat-label">记录年份</div></div>
+  `;
+
+  const top = symbols.sort((a,b)=>b.freq-a.freq).slice(0,12);
+  const maxFreq = top[0]?.freq || 1;
+  document.getElementById('dash-top-symbols').innerHTML = top.map(s => `
+    <div class="symbol-card" onclick="openSymbol('${esc(s.word)}')">
+      <span class="symbol-word">${esc(s.word)}</span>
+      <span class="symbol-count">${s.freq}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('dash-recent').innerHTML = entries.slice(0,8).map(e => `
+    <div class="tl-entry" onclick="openEntry('${e.date}')">
+      <div class="tl-date">${e.date}</div>
+      <div class="tl-preview">${esc(e.content.slice(0,120))}</div>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// SYMBOLS
+// ══════════════════════════════════════════════════════
+function populateFilters() {
+  const years = [...new Set(Object.values(DB.entries).map(e => e.year))].sort((a,b)=>b-a);
+  const yearSel = document.getElementById('sym-year');
+  yearSel.innerHTML = '<option value="">全部年份</option>' +
+    years.map(y => `<option value="${y}">${y}</option>`).join('');
+
+  const months = [...new Set(Object.values(DB.entries).map(e => e.month))].sort((a,b)=>a-b);
+  const monthSel = document.getElementById('sym-month');
+  monthSel.innerHTML = '<option value="">全部月份</option>' +
+    months.map(m => `<option value="${m}">${m}月</option>`).join('');
+}
+
+function setSeason(el) {
+  currentSeason = el.dataset.season;
+  document.querySelectorAll('.filter-chip[data-season]').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderSymbols();
+}
+
+function setSort(el) {
+  currentSymbolSort = el.dataset.sort;
+  document.querySelectorAll('.sort-opt').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  renderSymbols();
+}
+
+function toggleExclusion() {
+  exclusionMode = !exclusionMode;
+  document.getElementById('excl-indicator').textContent = exclusionMode ? '●' : '○';
+  document.getElementById('excl-indicator').style.color = exclusionMode ? 'var(--moon)' : 'var(--text-dim)';
+  document.getElementById('excl-toggle').classList.toggle('active', exclusionMode);
+  renderSymbols();
+}
+
+// 计算 word 在 text 中"纯净"出现次数：排除被符号库中更长词覆盖的位置
+function countExclusive(word, text) {
+  const re = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g');
+  // 只关心符号库里比 word 更长、且包含 word 的词
+  const blockers = Object.keys(DB.symbols).filter(s => s !== word && s.includes(word));
+  if (blockers.length === 0) return (text.match(re) || []).length;
+
+  let count = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const pos = m.index;
+    const dominated = blockers.some(blocker => {
+      const offset = blocker.indexOf(word);
+      const start = pos - offset;
+      if (start < 0 || start + blocker.length > text.length) return false;
+      return text.slice(start, start + blocker.length) === blocker;
+    });
+    if (!dominated) count++;
+  }
+  return count;
+}
+
+// 当互斥模式开启时，重新计算某符号的有效天数和总次数
+function getExclusiveStats(word, validDates) {
+  let days = 0, freq = 0;
+  const dates = [];
+  for (const entry of Object.values(DB.entries)) {
+    if (validDates && !validDates.has(entry.date)) continue;
+    const c = countExclusive(word, entry.content);
+    if (c > 0) { days++; freq += c; dates.push(entry.date); }
+  }
+  dates.sort((a,b) => b.localeCompare(a));
+  return { days, freq, dates };
+}
+
+
+function renderSymbols() {
+  const search = document.getElementById('sym-search').value.trim().toLowerCase();
+  const filterYear = document.getElementById('sym-year').value;
+  const filterMonth = document.getElementById('sym-month').value;
+
+  // Determine valid dates by filters
+  const validDates = new Set(
+    Object.values(DB.entries)
+      .filter(e => {
+        if (filterYear && e.year != filterYear) return false;
+        if (filterMonth && e.month != filterMonth) return false;
+        if (currentSeason && e.season !== currentSeason) return false;
+        return true;
+      })
+      .map(e => e.date)
+  );
+
+  let syms = Object.values(DB.symbols).map(s => {
+    if (exclusionMode) {
+      const ex = getExclusiveStats(s.word, validDates);
+      return { ...s, filteredFreq: ex.days, filteredTotalFreq: ex.freq, filteredDates: ex.dates, exclusive: true };
+    }
+    const filteredDates = s.dates.filter(d => validDates.has(d));
+    return { ...s, filteredFreq: filteredDates.length, filteredTotalFreq: s.freq, filteredDates };
+  }).filter(s => s.filteredFreq > 0 && !(DB.blocked||[]).includes(s.word));
+
+  if (search) syms = syms.filter(s => s.word.toLowerCase().includes(search));
+
+  if (currentSymbolSort === 'freq') syms.sort((a,b) => b.filteredFreq - a.filteredFreq);
+  else if (currentSymbolSort === 'recent') syms.sort((a,b) => {
+    const la = a.filteredDates[0] || '';
+    const lb = b.filteredDates[0] || '';
+    return lb.localeCompare(la);
+  });
+  else syms.sort((a,b) => a.word.localeCompare(b.word, 'zh'));
+
+  const blocked = DB.blocked || [];
+  document.getElementById('sym-count-label').textContent =
+    `${syms.length} 个符号${blocked.length ? ' · ' + blocked.length + ' 个已屏蔽' : ''}`;
+
+  if (syms.length === 0) {
+    document.getElementById('symbols-grid').innerHTML =
+      '<div class="empty-state">当前筛选条件下无符号</div>';
+  } else {
+    document.getElementById('symbols-grid').innerHTML = syms.map(s => `
+      <div class="symbol-card" style="padding-right:.6rem" onclick="openSymbol('${esc(s.word)}')">
+        <span class="symbol-word">${esc(s.word)}</span>
+        <span style="display:flex;align-items:center;gap:.5rem">
+          <span class="symbol-count" style="font-size:.85rem;opacity:.8" title="${s.filteredFreq}天 / ${s.filteredTotalFreq}次总计">${s.filteredFreq}d · ${s.filteredTotalFreq}×</span>
+          <span class="block-btn" title="屏蔽此符号" onclick="event.stopPropagation();blockSymbol('${esc(s.word)}')">✕</span>
+        </span>
+      </div>
+    `).join('');
+  }
+
+  // 已屏蔽区域
+  const blockedPanel = document.getElementById('blocked-panel');
+  if (blocked.length === 0) {
+    blockedPanel.style.display = 'none';
+  } else {
+    blockedPanel.style.display = 'block';
+    document.getElementById('blocked-chips').innerHTML = blocked.map(w => `
+      <span class="blocked-chip" onclick="unblockSymbol('${esc(w)}')" title="点击恢复">
+        ${esc(w)} <span style="opacity:.5;font-size:.7rem">↩</span>
+      </span>
+    `).join('');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// BLOCK / UNBLOCK SYMBOLS
+// ══════════════════════════════════════════════════════
+function blockSymbol(word) {
+  if (!DB.blocked) DB.blocked = [];
+  if (!DB.blocked.includes(word)) DB.blocked.push(word);
+  save(); renderSymbols(); toast(`「${word}」已屏蔽`);
+}
+function unblockSymbol(word) {
+  DB.blocked = (DB.blocked || []).filter(w => w !== word);
+  save(); renderSymbols(); toast(`「${word}」已恢复`);
+}
+
+// ══════════════════════════════════════════════════════
+// CUSTOM WORD SEARCH
+// ══════════════════════════════════════════════════════
+function searchCustomWord() {
+  const input = document.getElementById('custom-word-input');
+  const word = input.value.trim();
+  const resultBox = document.getElementById('custom-search-result');
+  if (!word) { resultBox.style.display = 'none'; return; }
+
+  // 在所有条目全文中查找（字符串包含匹配，不依赖分词）
+  const hits = Object.values(DB.entries)
+    .filter(e => e.content.includes(word))
+    .sort((a,b) => b.date.localeCompare(a.date));
+
+  if (hits.length === 0) {
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = `<span style="color:var(--text-dim)">「${esc(word)}」在全部记录中未找到。</span>`;
+    return;
+  }
+
+  const alreadyExists = !!DB.symbols[word];
+  const datesHtml = hits.map(e =>
+    `<span class="date-chip" onclick="openEntryFromSymbol('${esc(e.date)}','${esc(word)}')" style="display:inline-block;margin:.2rem .3rem .2rem 0">${e.date}</span>`
+  ).join('');
+
+  resultBox.style.display = 'block';
+  resultBox.innerHTML = `
+    <div style="display:flex;align-items:baseline;gap:1rem;margin-bottom:.8rem;flex-wrap:wrap">
+      <span style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:var(--moon);letter-spacing:.1em">${esc(word)}</span>
+      <span style="color:var(--text-dim);font-size:.8rem">出现于 ${hits.length} 条记录</span>
+      ${alreadyExists
+        ? `<span style="color:var(--gold);font-size:.78rem;letter-spacing:.06em">✓ 已在符号库中</span>`
+        : `<button class="btn-primary" style="padding:.35rem .9rem;font-size:.78rem" onclick="addCustomSymbol('${esc(word)}')">加入符号库</button>`
+      }
+    </div>
+    <div>${datesHtml}</div>
+  `;
+}
+
+function addCustomSymbol(word) {
+  // 全文匹配统计（每条记录中出现次数之和，按日期去重记录）
+  let totalFreq = 0;
+  const dates = [];
+  for (const entry of Object.values(DB.entries)) {
+    const count = (entry.content.match(new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g')) || []).length;
+    if (count > 0) {
+      totalFreq += count;
+      dates.push(entry.date);
+    }
+  }
+  dates.sort((a,b) => b.localeCompare(a));
+  DB.symbols[word] = { word, freq: totalFreq, days: dates.length, dates, custom: true };
+  save();
+  renderSymbols();
+  toast(`「${word}」已加入符号库`);
+  // 刷新结果区域，按钮变成已添加状态
+  searchCustomWord();
+}
+
+// ══════════════════════════════════════════════════════
+// SYMBOL DETAIL
+// ══════════════════════════════════════════════════════
+
+// 提取词语在某条梦境中的前后文（每次出现都显示，最多3处）
+// 互斥模式下，被更长符号覆盖的出现会标灰
+function getContextSnippet(date, word) {
+  const entry = DB.entries[date];
+  if (!entry) return '';
+  const text = entry.content;
+  const re = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g');
+  const CONTEXT = 18;
+  const blockers = exclusionMode
+    ? Object.keys(DB.symbols).filter(s => s !== word && s.includes(word))
+    : [];
+  const snippets = [];
+  let m;
+  while ((m = re.exec(text)) !== null && snippets.length < 3) {
+    const pos = m.index;
+    const dominated = blockers.some(blocker => {
+      const offset = blocker.indexOf(word);
+      const start = pos - offset;
+      if (start < 0 || start + blocker.length > text.length) return false;
+      return text.slice(start, start + blocker.length) === blocker;
+    });
+    const start = Math.max(0, pos - CONTEXT);
+    const end   = Math.min(text.length, pos + word.length + CONTEXT);
+    const pre   = esc(text.slice(start, pos));
+    const hit   = esc(word);
+    const post  = esc(text.slice(pos + word.length, end));
+    const prefix = start > 0 ? '…' : '';
+    const suffix = end < text.length ? '…' : '';
+    const hlStyle = dominated
+      ? 'style="opacity:.35;text-decoration:line-through"'
+      : '';
+    snippets.push(`${prefix}${pre}<span class="ctx-hl" ${hlStyle}>${hit}</span>${post}${suffix}`);
+  }
+  return snippets.join('<br><br>');
+}
+
+function openSymbol(word) {
+  const s = DB.symbols[word];
+  if (!s) return;
+  document.getElementById('detail-word').textContent = word;
+
+  // 互斥模式：重新计算并过滤掉被长词覆盖的出现
+  let activeDates = s.dates;
+  let displayFreq = s.freq;
+  let displayDays = s.dates.length;
+  if (exclusionMode) {
+    const ex = getExclusiveStats(word, null);
+    activeDates = ex.dates;
+    displayFreq = ex.freq;
+    displayDays = ex.days;
+  }
+
+  document.getElementById('detail-freq').textContent =
+    `${displayDays} 天 · ${displayFreq} 次${exclusionMode ? '（互斥）' : ''}`;
+
+  // Group dates by year-month
+  const groups = {};
+  for (const d of activeDates) {
+    const [y,m] = d.split('.');
+    const key = `${y}.${m}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(d);
+  }
+
+  const SEASON_ZH = {spring:'春',summer:'夏',autumn:'秋',winter:'冬'};
+  let html = '';
+  for (const [ym, dates] of Object.entries(groups).sort((a,b)=>b[0].localeCompare(a[0]))) {
+    const [y,m] = ym.split('.');
+    const season = SEASON_ZH[getSeason(parseInt(m))];
+    html += `<div class="month-section">
+      <div class="month-label">${y} 年 ${parseInt(m)} 月 · ${season}</div>
+      <div class="date-chips">
+        ${dates.map(d => {
+          const snippet = getContextSnippet(d, word);
+          return `<span class="chip-wrap">
+            <span class="date-chip" onclick="openEntryFromSymbol('${esc(d)}','${esc(word)}')">${d}</span>
+            ${snippet ? `<div class="ctx-tooltip">${snippet}</div>` : ''}
+          </span>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+  document.getElementById('detail-dates').innerHTML = html;
+  showPage('symbol-detail');
+}
+
+function openEntryFromSymbol(date, word) {
+  openEntry(date, word);
+}
+
+// ══════════════════════════════════════════════════════
+// ENTRY VIEW
+// ══════════════════════════════════════════════════════
+const SEASON_NAMES = {spring:'春·',summer:'夏·',autumn:'秋·',winter:'冬·'};
+let currentEntryDate = null;
+
+function openEntry(date, highlightWord) {
+  const e = DB.entries[date];
+  if (!e) return;
+  currentEntryDate = date;
+  document.getElementById('entry-date').textContent = date;
+  document.getElementById('entry-season').textContent =
+    (SEASON_NAMES[e.season] || '') + ['一','二','三','四','五','六','七','八','九','十','十一','十二'][e.month-1] + '月';
+  let body = esc(e.content);
+  if (highlightWord) {
+    const hw = esc(highlightWord);
+    body = body.replace(new RegExp(hw, 'g'), `<span class="highlight">${hw}</span>`);
+  }
+  document.getElementById('entry-body').innerHTML = body;
+  showPage('entry');
+}
+
+function openEditDate() {
+  if (!currentEntryDate) return;
+  document.getElementById('edit-date-current').textContent = currentEntryDate;
+  document.getElementById('edit-date-input').value = currentEntryDate;
+  document.getElementById('edit-date-modal').classList.add('open');
+  setTimeout(() => document.getElementById('edit-date-input').select(), 50);
+}
+
+function closeEditDateModal() {
+  document.getElementById('edit-date-modal').classList.remove('open');
+}
+
+function confirmEditDate() {
+  const raw = document.getElementById('edit-date-input').value.trim();
+  const m = raw.match(/^(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})$/);
+  if (!m) { toast('格式不正确，请用 yyyy.mm.dd', true); return; }
+  const year = parseInt(m[1]), month = parseInt(m[2]), day = parseInt(m[3]);
+  const newDate = `${year}.${String(month).padStart(2,'0')}.${String(day).padStart(2,'0')}`;
+  if (newDate === currentEntryDate) { closeEditDateModal(); return; }
+  if (DB.entries[newDate]) { toast('该日期已存在记录，无法覆盖', true); return; }
+
+  // Move entry
+  const entry = { ...DB.entries[currentEntryDate], date: newDate, year, month, day, season: getSeason(month) };
+  delete DB.entries[currentEntryDate];
+  DB.entries[newDate] = entry;
+
+  // Update symbol date references
+  for (const sym of Object.values(DB.symbols)) {
+    const idx = sym.dates.indexOf(currentEntryDate);
+    if (idx !== -1) { sym.dates[idx] = newDate; sym.dates.sort((a,b)=>b.localeCompare(a)); }
+  }
+
+  const oldDate = currentEntryDate;
+  currentEntryDate = newDate;
+  save();
+  closeEditDateModal();
+  renderDashboard(); renderTimeline();
+  // Refresh current entry view
+  document.getElementById('entry-date').textContent = newDate;
+  document.getElementById('entry-season').textContent =
+    (SEASON_NAMES[entry.season] || '') + ['一','二','三','四','五','六','七','八','九','十','十一','十二'][month-1] + '月';
+  toast(`日期已从 ${oldDate} 更新为 ${newDate}`);
+}
+
+// ══════════════════════════════════════════════════════
+// TIMELINE
+// ══════════════════════════════════════════════════════
+function renderTimeline() {
+  const entries = Object.values(DB.entries).sort((a,b)=>b.date.localeCompare(a.date));
+  if (entries.length === 0) {
+    document.getElementById('timeline-list').innerHTML =
+      '<div class="empty-state">尚无记录</div>';
+    return;
+  }
+  document.getElementById('timeline-list').innerHTML = entries.map(e => `
+    <div class="tl-entry" onclick="openEntry('${e.date}')">
+      <div class="tl-date">${e.date}</div>
+      <div class="tl-preview">${esc(e.content.slice(0,150))}</div>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// PASTE MODAL
+// ══════════════════════════════════════════════════════
+function openPasteModal() {
+  document.getElementById('paste-modal').classList.add('open');
+  document.getElementById('paste-area').value = '';
+}
+function closePasteModal() {
+  document.getElementById('paste-modal').classList.remove('open');
+}
+function processPaste() {
+  const text = document.getElementById('paste-area').value.trim();
+  if (!text) { toast('请先粘贴梦境文本', true); return; }
+  const n = parseDreamText(text);
+  if (n === 0) {
+    toast('未识别到有效条目，请检查格式', true);
+  } else {
+    closePasteModal();
+    toast(`已归档 ${n} 条梦境记录`);
+    populateFilters();
+    renderDashboard();
+    renderTimeline();
+    if (document.getElementById('page-symbols').classList.contains('active')) renderSymbols();
+    if (document.getElementById('page-landing').classList.contains('active')) showPage('dashboard');
+  }
+}
+
+function rebuildAndRefresh() {
+  if (Object.keys(DB.entries).length === 0) { toast('暂无记录', true); return; }
+  // 保留 custom 符号，重建自动符号
+  const customSymbols = Object.fromEntries(
+    Object.entries(DB.symbols).filter(([,v]) => v.custom)
+  );
+  rebuildSymbols();
+  // 重新合并自定义符号（用全文重新统计频率）
+  for (const word of Object.keys(customSymbols)) {
+    let totalFreq = 0; const dates = [];
+    for (const entry of Object.values(DB.entries)) {
+      const count = (entry.content.match(new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'))||[]).length;
+      if (count > 0) { totalFreq += count; dates.push(entry.date); }
+    }
+    dates.sort((a,b)=>b.localeCompare(a));
+    if (totalFreq > 0) DB.symbols[word] = { word, freq: totalFreq, dates, custom: true };
+  }
+  save();
+  renderDashboard(); renderTimeline(); renderSymbols();
+  toast('已用最新词典重新分析');
+}
+
+function clearAllData() {
+  if (!confirm('确定要清除所有本地数据吗？此操作无法撤销。\n建议先导出备份。')) return;
+  DB = { entries: {}, symbols: {} };
+  localStorage.removeItem(STORAGE_KEY);
+  showPage('landing', false);
+  navHistory = [];
+  toast('已清除全部数据');
+}
+
+
+// ══════════════════════════════════════════════════════
+function exportJSON() {
+  if (Object.keys(DB.entries).length === 0) { toast('暂无数据可导出', true); return; }
+  const blob = new Blob([JSON.stringify(DB, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `梦境志备份_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  toast('备份文件已下载');
+}
+
+function importJSON() {
+  document.getElementById('import-file').click();
+}
+
+function handleImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.entries) throw new Error();
+      // Merge
+      DB.entries = { ...DB.entries, ...data.entries };
+      rebuildSymbols();
+      save();
+      populateFilters();
+      renderDashboard();
+      renderTimeline();
+      toast(`导入成功，共 ${Object.keys(DB.entries).length} 条记录`);
+      if (document.getElementById('page-landing').classList.contains('active')) showPage('dashboard');
+    } catch {
+      toast('文件格式错误，导入失败', true);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ══════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════
+let toastTimer;
+function toast(msg, isErr) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.borderColor = isErr ? 'rgba(200,120,120,0.4)' : 'var(--border)';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ══════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+load();
+
+// Nav page renders
+const originalShowPage = showPage;
+window.showPage = function(id, pushHistory) {
+  originalShowPage(id, pushHistory);
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'symbols') { populateFilters(); renderSymbols(); }
+  if (id === 'timeline') renderTimeline();
+};
+
+if (Object.keys(DB.entries).length > 0) {
+  populateFilters();
+  showPage('dashboard', true);
+} else {
+  showPage('landing', true);
+}
+
+document.getElementById('edit-date-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditDateModal();
+});
+
+// Close modal on overlay click
+document.getElementById('paste-modal').addEventListener('click', function(e) {
+  if (e.target === this) closePasteModal();
+});
+</script>
+</body>
+</html>
