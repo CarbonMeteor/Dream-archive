@@ -645,6 +645,9 @@
   <div class="detail-header">
     <div class="detail-word" id="detail-word"></div>
     <div class="detail-freq" id="detail-freq"></div>
+    <div style="margin-left:auto;display:flex;gap:.6rem;align-items:center">
+      <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .9rem" onclick="addCurrentSymbolToGroup()">加入符号组</button>
+    </div>
   </div>
   <div id="detail-dates"></div>
 </div>
@@ -1385,6 +1388,40 @@ function openSymbol(word) {
   }
   document.getElementById('detail-dates').innerHTML = html || '<div class="empty-state">互斥过滤后无有效出现</div>';
   showPage('symbol-detail');
+}
+
+function addCurrentSymbolToGroup() {
+  const word = document.getElementById('detail-word').textContent;
+  if (!word) return;
+  const groups = Object.values(DB.groups);
+  if (groups.length === 0) {
+    const name = prompt(`暂无符号组。输入名称直接创建并将「${word}」加入：`);
+    if (!name || !name.trim()) return;
+    const id = newGroupId();
+    DB.groups[id] = { id, name: name.trim(), words: [word] };
+    save(); renderSymbols(); openSymbol(word);
+    toast(`符号组「${name.trim()}」已创建，「${word}」已加入`);
+    return;
+  }
+  const options = groups.map((g, i) => `${i + 1}. ${g.name}`).join('\n');
+  const input = prompt(`选择要加入的符号组（输入编号）：\n${options}\n\n输入 0 新建符号组`);
+  if (!input) return;
+  const idx = parseInt(input);
+  if (idx === 0) {
+    const name = prompt('新符号组名称：');
+    if (!name || !name.trim()) return;
+    const id = newGroupId();
+    DB.groups[id] = { id, name: name.trim(), words: [word] };
+    save(); renderSymbols(); openSymbol(word);
+    toast(`符号组「${name.trim()}」已创建`);
+    return;
+  }
+  if (isNaN(idx) || idx < 1 || idx > groups.length) { toast('编号无效', true); return; }
+  const group = groups[idx - 1];
+  if (group.words.includes(word)) { toast(`「${word}」已在该组内`, true); return; }
+  group.words.push(word);
+  save(); renderSymbols(); openSymbol(word);
+  toast(`「${word}」已加入符号组「${group.name}」`);
 }
 
 function openEntryFromSymbol(date, word) {
