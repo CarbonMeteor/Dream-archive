@@ -473,6 +473,20 @@
   }
 
 
+  /* ─── TIMELINE DIVIDERS ─── */
+  .tl-year-divider {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.5rem; color: var(--moon);
+    letter-spacing: .2em; font-weight: 300;
+    padding: 1.8rem 0 .6rem;
+    border-bottom: 1px solid rgba(140,160,220,0.3);
+    margin-bottom: .4rem;
+  }
+  .tl-month-divider {
+    border-top: 1px dashed rgba(140,160,220,0.1);
+    margin: .5rem 0;
+  }
+
   /* ─── STAR BUTTON ─── */
   .star-btn {
     font-size: .85rem; color: var(--text-dim);
@@ -611,7 +625,6 @@
   <div class="sort-row" style="margin-bottom:.8rem">
     <span>排序：</span>
     <span class="sort-opt active" data-sort="freq" onclick="setSort(this)">频率</span>
-    <span class="sort-opt" data-sort="alpha" onclick="setSort(this)">笔画</span>
     <span class="sort-opt" data-sort="recent" onclick="setSort(this)">最近出现</span>
     <span style="flex:1"></span>
     <button id="edit-mode-btn" class="filter-chip" onclick="toggleEditMode()">编辑</button>
@@ -658,7 +671,8 @@
   <div class="detail-header" style="align-items:center;gap:1rem">
     <div class="detail-word" id="group-detail-name" style="color:var(--gold)"></div>
     <span id="group-detail-star" class="star-btn" style="font-size:1.4rem;cursor:pointer"></span>
-    <button id="group-detail-edit" class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem;margin-left:auto">移除成员</button>
+    <button id="group-detail-edit" class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem">移除成员</button>
+    <button onclick="deleteCurrentGroup()" class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem;color:var(--red)">删除符号组</button>
   </div>
   <div class="section-title">组内符号</div>
   <div id="group-detail-members" class="symbols-grid"></div>
@@ -741,6 +755,25 @@
 
 <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
 <div class="toast" id="toast"></div>
+
+<!-- ── GROUP PICKER MODAL ────────────────────────── -->
+<div class="modal-overlay" id="group-picker-modal">
+  <div class="modal" style="max-width:400px">
+    <h2 id="group-picker-title">加入符号组</h2>
+    <div id="group-picker-list" style="display:flex;flex-direction:column;gap:.5rem;max-height:320px;overflow-y:auto;margin:.5rem 0"></div>
+    <div style="border-top:1px solid var(--border);padding-top:1rem;margin-top:.5rem">
+      <div style="display:flex;gap:.6rem;align-items:center">
+        <input type="text" id="group-picker-new-name" placeholder="新建符号组…"
+          style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:.5rem .8rem;color:var(--text);font-family:'Noto Serif SC',serif;font-size:.84rem;outline:none"
+          onkeydown="if(event.key==='Enter')pickerCreateNew()">
+        <button class="btn-primary" style="padding:.45rem .9rem;font-size:.8rem" onclick="pickerCreateNew()">新建</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeGroupPicker()">取消</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ══════════════════════════════════════════════════════
@@ -1123,10 +1156,11 @@ function renderSymbols() {
     if (currentSymbolSort === 'recent') return (b.dates[0] || '').localeCompare(a.dates[0] || '');
     return aKey.localeCompare(bKey, 'zh');
   };
-  groupItems.sort(sortFn);
-  symItems.sort(sortFn);
+  // Merge groups and symbols into one list, sort together
+  const allItems = [...groupItems, ...symItems];
+  allItems.sort(sortFn);
 
-  const totalCount = groupItems.length + symItems.length;
+  const totalCount = allItems.length;
   document.getElementById('sym-count-label').textContent =
     `${symItems.length} 个符号 · ${groupItems.length} 个符号组${blocked.length ? ' · ' + blocked.length + ' 已屏蔽' : ''}`;
 
@@ -1136,9 +1170,9 @@ function renderSymbols() {
   if (totalCount === 0) {
     document.getElementById('symbols-grid').innerHTML = '<div class="empty-state">当前筛选条件下无符号</div>';
   } else {
-    const groupHtml = groupItems.map(g => renderGroupCard(g)).join('');
-    const symHtml = symItems.map(s => renderSymbolCard(s)).join('');
-    document.getElementById('symbols-grid').innerHTML = groupHtml + symHtml;
+    document.getElementById('symbols-grid').innerHTML = allItems.map(item =>
+      item.isGroup ? renderGroupCard(item) : renderSymbolCard(item)
+    ).join('');
   }
 
   // Blocked panel
@@ -1232,33 +1266,88 @@ function batchBlock() {
   save(); renderSymbols(); toast(`已屏蔽 ${words.length} 个符号`);
 }
 
+// ── Group picker modal ──
+let _pickerPendingWords = [];  // words waiting to be assigned
+let _pickerMode = '';          // 'add' | 'create'
+
+function openGroupPicker(words) {
+  _pickerPendingWords = words;
+  document.getElementById('group-picker-new-name').value = '';
+  const groups = Object.values(DB.groups);
+  const listEl = document.getElementById('group-picker-list');
+  if (groups.length === 0) {
+    listEl.innerHTML = '<div style="color:var(--text-dim);font-size:.82rem;padding:.4rem 0">暂无符号组，在下方新建</div>';
+  } else {
+    listEl.innerHTML = groups.map(g => `
+      <div class="symbol-card group-card" style="cursor:pointer;padding:.7rem 1rem"
+        onclick="pickerSelectGroup('${esc(g.id)}')">
+        <span style="color:var(--gold)">${esc(g.name)}</span>
+        <span style="font-size:.78rem;color:var(--text-dim)">${g.words.length} 个符号</span>
+      </div>
+    `).join('');
+  }
+  document.getElementById('group-picker-modal').classList.add('open');
+}
+
+function closeGroupPicker() {
+  document.getElementById('group-picker-modal').classList.remove('open');
+  _pickerPendingWords = [];
+}
+
+function pickerSelectGroup(groupId) {
+  const group = DB.groups[groupId];
+  if (!group) return;
+  const added = [];
+  for (const w of _pickerPendingWords) {
+    if (!group.words.includes(w)) { group.words.push(w); added.push(w); }
+  }
+  save(); closeGroupPicker(); renderSymbols();
+  // If we came from symbol detail, refresh it
+  const detailWord = document.getElementById('detail-word').textContent;
+  if (detailWord && document.getElementById('page-symbol-detail').classList.contains('active')) {
+    openSymbol(detailWord);
+  }
+  toast(added.length ? `已加入符号组「${group.name}」` : '所选符号已在该组内');
+}
+
+function pickerCreateNew() {
+  const name = document.getElementById('group-picker-new-name').value.trim();
+  if (!name) return;
+  const id = newGroupId();
+  DB.groups[id] = { id, name, words: [..._pickerPendingWords] };
+  save(); closeGroupPicker(); renderSymbols();
+  const detailWord = document.getElementById('detail-word').textContent;
+  if (detailWord && document.getElementById('page-symbol-detail').classList.contains('active')) {
+    openSymbol(detailWord);
+  }
+  toast(`符号组「${name}」已创建`);
+}
+
 function createGroupFromSelected() {
   const words = [...selectedWords].filter(k => !k.startsWith('g_') && DB.symbols[k]);
-  if (words.length < 2) { toast('请至少选择2个符号', true); return; }
-  const name = prompt('符号组名称：');
-  if (!name || !name.trim()) return;
-  const id = newGroupId();
-  DB.groups[id] = { id, name: name.trim(), words };
+  if (words.length < 1) { toast('请至少选择1个符号', true); return; }
+  // Open picker — user can create new or add to existing
+  openGroupPicker(words);
+  // Clear selection after opening
   selectedWords.clear();
-  save(); renderSymbols(); toast(`符号组「${name.trim()}」已创建`);
 }
 
 function addSelectedToGroup() {
   const words = [...selectedWords].filter(k => !k.startsWith('g_') && DB.symbols[k]);
   if (words.length === 0) { toast('请先选择符号', true); return; }
-  const groups = Object.values(DB.groups);
-  if (groups.length === 0) { toast('暂无符号组，请先创建', true); return; }
-  const options = groups.map((g, i) => `${i + 1}. ${g.name}`).join('\n');
-  const input = prompt(`选择要加入的符号组（输入编号）：\n${options}`);
-  if (!input) return;
-  const idx = parseInt(input) - 1;
-  if (isNaN(idx) || idx < 0 || idx >= groups.length) { toast('编号无效', true); return; }
-  const group = groups[idx];
-  for (const w of words) {
-    if (!group.words.includes(w)) group.words.push(w);
-  }
+  openGroupPicker(words);
   selectedWords.clear();
-  save(); renderSymbols(); toast(`已加入符号组「${group.name}」`);
+}
+
+function deleteCurrentGroup() {
+  const name = document.getElementById('group-detail-name').textContent;
+  const groupId = Object.keys(DB.groups).find(id => DB.groups[id].name === name);
+  if (!groupId) return;
+  if (!confirm(`删除符号组「${name}」？组内符号不会被删除。`)) return;
+  delete DB.groups[groupId];
+  // Remove from starred
+  DB.starred = (DB.starred || []).filter(k => k !== groupId);
+  save(); renderSymbols(); showPage('symbols'); toast(`符号组「${name}」已删除`);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1277,37 +1366,34 @@ function openGroup(groupId) {
     const s = DB.symbols[w];
     if (!s) return '';
     const ex = getExclusiveStats(w, null);
-    return `<div class="symbol-card" onclick="openSymbol('${esc(w)}')" style="cursor:pointer">
-      <span class="symbol-word">${esc(w)}</span>
-      <span class="symbol-count" style="font-size:.82rem">${ex.days}d · ${ex.freq}×</span>
+    return `<div class="symbol-card" style="cursor:pointer">
+      <span class="symbol-word" onclick="openSymbol('${esc(w)}')">${esc(w)}</span>
+      <span style="display:flex;align-items:center;gap:.6rem">
+        <span class="symbol-count" style="font-size:.82rem">${ex.days}d · ${ex.freq}×</span>
+        <span style="font-size:.75rem;color:var(--text-dim);cursor:pointer" onclick="removeMemberFromGroup('${esc(groupId)}','${esc(w)}')" title="从组内移除">✕</span>
+      </span>
     </div>`;
   }).join('');
 
   document.getElementById('group-detail-members').innerHTML = memberHtml ||
     '<div class="empty-state" style="padding:2rem">组内暂无符号</div>';
-
-  // Remove a word from group
-  document.getElementById('group-detail-edit').onclick = function() { editGroupWords(groupId); };
+  document.getElementById('group-detail-edit').onclick = function() { openGroupPicker([]); };
 
   showPage('group-detail');
 }
 
-function editGroupWords(groupId) {
+function removeMemberFromGroup(groupId, word) {
   const g = DB.groups[groupId];
   if (!g) return;
-  const list = g.words.join('，');
-  const input = prompt(`当前成员：${list}\n\n输入要移除的符号（留空取消）：`);
-  if (!input || !input.trim()) return;
-  const toRemove = input.trim();
-  const idx = g.words.indexOf(toRemove);
-  if (idx === -1) { toast(`「${toRemove}」不在组内`, true); return; }
+  const idx = g.words.indexOf(word);
+  if (idx === -1) return;
   g.words.splice(idx, 1);
   if (g.words.length === 0) {
     delete DB.groups[groupId];
-    save(); renderSymbols(); showPage('symbols'); toast(`符号组已解散`);
+    save(); renderSymbols(); showPage('symbols'); toast('符号组已无成员，已自动解散');
     return;
   }
-  save(); openGroup(groupId); toast(`「${toRemove}」已从组内移除`);
+  save(); openGroup(groupId); toast(`「${word}」已从组内移除`);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1393,35 +1479,7 @@ function openSymbol(word) {
 function addCurrentSymbolToGroup() {
   const word = document.getElementById('detail-word').textContent;
   if (!word) return;
-  const groups = Object.values(DB.groups);
-  if (groups.length === 0) {
-    const name = prompt(`暂无符号组。输入名称直接创建并将「${word}」加入：`);
-    if (!name || !name.trim()) return;
-    const id = newGroupId();
-    DB.groups[id] = { id, name: name.trim(), words: [word] };
-    save(); renderSymbols(); openSymbol(word);
-    toast(`符号组「${name.trim()}」已创建，「${word}」已加入`);
-    return;
-  }
-  const options = groups.map((g, i) => `${i + 1}. ${g.name}`).join('\n');
-  const input = prompt(`选择要加入的符号组（输入编号）：\n${options}\n\n输入 0 新建符号组`);
-  if (!input) return;
-  const idx = parseInt(input);
-  if (idx === 0) {
-    const name = prompt('新符号组名称：');
-    if (!name || !name.trim()) return;
-    const id = newGroupId();
-    DB.groups[id] = { id, name: name.trim(), words: [word] };
-    save(); renderSymbols(); openSymbol(word);
-    toast(`符号组「${name.trim()}」已创建`);
-    return;
-  }
-  if (isNaN(idx) || idx < 1 || idx > groups.length) { toast('编号无效', true); return; }
-  const group = groups[idx - 1];
-  if (group.words.includes(word)) { toast(`「${word}」已在该组内`, true); return; }
-  group.words.push(word);
-  save(); renderSymbols(); openSymbol(word);
-  toast(`「${word}」已加入符号组「${group.name}」`);
+  openGroupPicker([word]);
 }
 
 function openEntryFromSymbol(date, word) {
@@ -1520,12 +1578,23 @@ function renderTimeline() {
     document.getElementById('timeline-list').innerHTML = '<div class="empty-state">尚无记录</div>';
     return;
   }
-  document.getElementById('timeline-list').innerHTML = entries.map(e => `
-    <div class="tl-entry" onclick="openEntry('${e.date}')">
+  let html = '';
+  let lastYear = null, lastMonth = null;
+  for (const e of entries) {
+    if (e.year !== lastYear) {
+      html += `<div class="tl-year-divider">${e.year}</div>`;
+      lastYear = e.year; lastMonth = null;
+    }
+    if (e.month !== lastMonth) {
+      if (lastMonth !== null) html += `<div class="tl-month-divider"></div>`;
+      lastMonth = e.month;
+    }
+    html += `<div class="tl-entry" onclick="openEntry('${e.date}')">
       <div class="tl-date">${e.date}</div>
       <div class="tl-preview">${esc(e.content.slice(0, 150))}</div>
-    </div>
-  `).join('');
+    </div>`;
+  }
+  document.getElementById('timeline-list').innerHTML = html;
 }
 
 // ══════════════════════════════════════════════════════
@@ -1724,6 +1793,9 @@ if (Object.keys(DB.entries).length > 0) {
   showPage('landing', true);
 }
 
+document.getElementById('group-picker-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeGroupPicker();
+});
 document.getElementById('edit-content-modal').addEventListener('click', function(e) {
   if (e.target === this) closeEditContentModal();
 });
