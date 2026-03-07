@@ -471,6 +471,65 @@
     border-radius: 1px; opacity: .35;
     transition: width .3s;
   }
+
+
+  /* ─── STAR BUTTON ─── */
+  .star-btn {
+    font-size: .85rem; color: var(--text-dim);
+    cursor: pointer; transition: color .15s;
+    line-height: 1; padding: .1rem;
+  }
+  .star-btn:hover, .star-btn.starred { color: var(--gold); }
+
+  /* ─── GROUP CARD ─── */
+  .group-card { border-color: rgba(201,182,138,0.25); }
+  .group-card:hover { border-color: rgba(201,182,138,0.5); background: var(--bg3); }
+  .group-badge {
+    display: inline-block;
+    padding: .25rem .7rem;
+    border: 1px solid rgba(201,182,138,0.4);
+    border-radius: 12px;
+    color: var(--gold); font-size: .8rem;
+    cursor: pointer; transition: all .18s;
+    letter-spacing: .04em;
+  }
+  .group-badge:hover { background: rgba(201,182,138,0.12); }
+
+  /* ─── EDIT MODE ─── */
+  .symbol-card.selected { border-color: rgba(140,160,220,0.6); background: rgba(140,160,220,0.08); }
+  .group-card.selected  { border-color: rgba(201,182,138,0.6); background: rgba(201,182,138,0.08); }
+  .edit-action-bar {
+    display: none;
+    gap: .6rem; flex-wrap: wrap; align-items: center;
+    padding: .7rem 1rem;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 8px; margin-bottom: 1rem;
+    font-size: .8rem;
+  }
+  #selected-count { color: var(--moon); font-size: .78rem; letter-spacing: .04em; }
+
+  /* ─── FILTER MODE CHIPS ─── */
+  .filter-mode-chip {
+    padding: .35rem .8rem;
+    border: 1px solid var(--border);
+    border-radius: 20px; background: transparent;
+    color: var(--text-dim); font-size: .78rem;
+    cursor: pointer; transition: all .2s;
+    font-family: 'Noto Serif SC', serif;
+    letter-spacing: .04em;
+  }
+  .filter-mode-chip:hover, .filter-mode-chip.active {
+    border-color: rgba(140,160,220,0.5);
+    background: var(--glow); color: var(--moon);
+  }
+  .filter-mode-chip[data-filter="groups"].active {
+    border-color: rgba(201,182,138,0.5);
+    background: rgba(201,182,138,0.1); color: var(--gold);
+  }
+  .filter-mode-chip[data-filter="starred"].active {
+    border-color: rgba(201,182,138,0.5);
+    background: rgba(201,182,138,0.1); color: var(--gold);
+  }
 </style>
 </head>
 <body>
@@ -492,9 +551,9 @@
   </div>
 </nav>
 
-<!-- ── LANDING ────────────────────────────────── -->
 <main>
 
+<!-- ── LANDING ──────────────────────────────── -->
 <div id="page-landing" class="page active">
   <div class="landing-moon">🌙</div>
   <div class="landing-title">梦境志<br><em>Dream Archive</em></div>
@@ -538,8 +597,9 @@
   </div>
   <div id="custom-search-result" style="display:none;margin-bottom:1.6rem;padding:1rem 1.2rem;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:.84rem;line-height:1.9;"></div>
 
+  <!-- 筛选栏 -->
   <div class="filter-bar">
-    <input type="text" id="sym-search" placeholder="筛选已有符号…" oninput="renderSymbols()">
+    <input type="text" id="sym-search" placeholder="筛选符号…" oninput="renderSymbols()">
     <select id="sym-year" onchange="renderSymbols()"><option value="">全部年份</option></select>
     <select id="sym-month" onchange="renderSymbols()"><option value="">全部月份</option></select>
     <button class="filter-chip" data-season="" onclick="setSeason(this)">全年</button>
@@ -548,14 +608,28 @@
     <button class="filter-chip" data-season="autumn" onclick="setSeason(this)">秋</button>
     <button class="filter-chip" data-season="winter" onclick="setSeason(this)">冬</button>
   </div>
-  <div class="sort-row">
+  <div class="sort-row" style="margin-bottom:.8rem">
     <span>排序：</span>
     <span class="sort-opt active" data-sort="freq" onclick="setSort(this)">频率</span>
     <span class="sort-opt" data-sort="alpha" onclick="setSort(this)">笔画</span>
     <span class="sort-opt" data-sort="recent" onclick="setSort(this)">最近出现</span>
     <span style="flex:1"></span>
-    <span id="excl-toggle" class="sort-opt" onclick="toggleExclusion()" title="开启后，若符号库中存在包含关系（如"青"与"青年"），较短符号将排除被较长符号覆盖的出现">符号互斥 <span id="excl-indicator" style="color:var(--text-dim)">○</span></span>
+    <button id="edit-mode-btn" class="filter-chip" onclick="toggleEditMode()">编辑</button>
   </div>
+  <!-- 过滤模式 -->
+  <div style="display:flex;gap:.5rem;margin-bottom:1.2rem;flex-wrap:wrap;align-items:center">
+    <button class="filter-mode-chip active" data-filter="all" onclick="setFilter(this)">全部</button>
+    <button class="filter-mode-chip" data-filter="starred" onclick="setFilter(this)">★ 星标</button>
+    <button class="filter-mode-chip" data-filter="groups" onclick="setFilter(this)">符号组</button>
+  </div>
+  <!-- 编辑模式操作栏 -->
+  <div id="edit-action-bar" class="edit-action-bar">
+    <span id="selected-count"></span>
+    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem" onclick="batchBlock()">批量屏蔽</button>
+    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem" onclick="createGroupFromSelected()">创建符号组</button>
+    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem" onclick="addSelectedToGroup()">加入符号组</button>
+  </div>
+
   <div id="symbols-grid" class="symbols-grid"></div>
 
   <!-- 已屏蔽符号 -->
@@ -575,12 +649,26 @@
   <div id="detail-dates"></div>
 </div>
 
+<!-- ── GROUP DETAIL ───────────────────────────── -->
+<div id="page-group-detail" class="page">
+  <button class="back-btn" onclick="showPage('symbols')">← 返回符号志</button>
+  <div class="detail-header" style="align-items:center;gap:1rem">
+    <div class="detail-word" id="group-detail-name" style="color:var(--gold)"></div>
+    <span id="group-detail-star" class="star-btn" style="font-size:1.4rem;cursor:pointer"></span>
+    <button id="group-detail-edit" class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem;margin-left:auto">移除成员</button>
+  </div>
+  <div class="section-title">组内符号</div>
+  <div id="group-detail-members" class="symbols-grid"></div>
+</div>
+
 <!-- ── ENTRY VIEW ──────────────────────────────── -->
 <div id="page-entry" class="page">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
     <button class="back-btn" id="entry-back" onclick="history.go(-1)" style="margin-bottom:0">← 返回</button>
-    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .9rem" onclick="openEditDate()">修改日期</button>
-    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .9rem" onclick="openEditContent()">编辑内容</button>
+    <div style="display:flex;gap:.6rem">
+      <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .9rem" onclick="openEditDate()">修改日期</button>
+      <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .9rem" onclick="openEditContent()">编辑内容</button>
+    </div>
   </div>
   <div class="entry-meta" id="entry-date"></div>
   <div class="entry-season" id="entry-season"></div>
@@ -619,9 +707,6 @@
   </div>
 </div>
 
-<input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
-<div class="toast" id="toast"></div>
-
 <!-- ── EDIT CONTENT MODAL ───────────────────────── -->
 <div class="modal-overlay" id="edit-content-modal">
   <div class="modal" style="max-width:680px">
@@ -634,6 +719,8 @@
     </div>
   </div>
 </div>
+
+<!-- ── EDIT DATE MODAL ──────────────────────────── -->
 <div class="modal-overlay" id="edit-date-modal">
   <div class="modal" style="max-width:360px">
     <h2>修改日期</h2>
@@ -649,23 +736,31 @@
   </div>
 </div>
 
+<input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
+<div class="toast" id="toast"></div>
+
 <script>
 // ══════════════════════════════════════════════════════
 // DATA
 // ══════════════════════════════════════════════════════
 const STORAGE_KEY = 'dreamarchive_v2';
-let DB = { entries: {}, symbols: {}, blocked: [] };
+let DB = { entries: {}, symbols: {}, blocked: [], starred: [], groups: {} };
 let navHistory = [];
 let currentSymbolSort = 'freq';
 let currentSeason = '';
-let exclusionMode = false;
+let currentFilter = 'all'; // 'all' | 'starred' | 'groups'
+let editMode = false;
+let selectedWords = new Set();
 
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
 }
 function load() {
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw) DB = JSON.parse(raw);
+  if (raw) {
+    const parsed = JSON.parse(raw);
+    DB = Object.assign({ entries: {}, symbols: {}, blocked: [], starred: [], groups: {} }, parsed);
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -675,22 +770,19 @@ function parseDreamText(text) {
   const blocks = text.split(/\*{3,}/).map(b => b.trim()).filter(Boolean);
   let added = 0;
   for (const block of blocks) {
-    const dateMatch = block.match(/^(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})/);
+    const dateMatch = block.match(/^(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
     if (!dateMatch) continue;
     const year = parseInt(dateMatch[1]);
     const month = parseInt(dateMatch[2]);
     const day = parseInt(dateMatch[3]);
     const dateKey = `${year}.${String(month).padStart(2,'0')}.${String(day).padStart(2,'0')}`;
-    const content = block.replace(/^(\d{4})[.\-/]\d{1,2}[.\-/]\d{1,2}\s*/, '').trim();
+    const content = block.replace(/^(\d{4})[.\-\/]\d{1,2}[.\-\/]\d{1,2}\s*/, '').trim();
     if (!content) continue;
     const season = getSeason(month);
     DB.entries[dateKey] = { date: dateKey, content, year, month, day, season };
     added++;
   }
-  if (added > 0) {
-    rebuildSymbols();
-    save();
-  }
+  if (added > 0) { rebuildSymbols(); save(); }
   return added;
 }
 
@@ -702,15 +794,11 @@ function getSeason(month) {
 }
 
 // ══════════════════════════════════════════════════════
-// TOKENIZATION — 内嵌词典 + 最大正向匹配 (完全离线)
+// TOKENIZATION — 内嵌词典 + 最大正向匹配
 // ══════════════════════════════════════════════════════
-
-// ── 停用词（单字功能词，对梦境分析无意义）──
 const STOP_ZH = new Set('的了是在我你他她它们这那有不也都就但和或又与及么呢吧啊哦嗯把被对从到要会能可得地着过里中上下一二三四五六七八九十个很非太最更还再已却其之于以为而如若虽因所当将则后前没什么这样那样所以然后然而因为虽然但是如果只是就是还是因此啊吗哈嘛哟喔唉哎哇嗯呀嘿哼哦呵'.split(''));
 const STOP_EN = new Set('i me my we our you your he she it they them the a an is was are were be been being have has had do does did will would could should may might shall need dare ought used to at of in on by for with from about into over after before up down out off through between while when where how what who whom which why that because so then now here there all some any one two but not no nor yet both either neither each every few more most other than such same well just than'.split(' '));
 
-// ── 内嵌中文词典（约2600词，最大正向匹配用）──
-// 涵盖：日常生活、情绪、人际、身体、自然、空间、梦境常见意象
 const DICT_RAW = `
 人们|人群|人物|人影|人声|人形|人物|人类|男人|女人|老人|小孩|孩子|男孩|女孩|婴儿|少年|少女|青年|老者|陌生人|陌生|熟人|朋友|亲人|家人|父亲|母亲|爸爸|妈妈|父母|兄弟|姐妹|兄长|弟弟|姐姐|妹妹|祖父|祖母|爷爷|奶奶|外公|外婆|丈夫|妻子|恋人|情人|爱人|同学|老师|同事|邻居|医生|护士|警察|士兵|国王|女王|皇帝|将军|神明|天使|恶魔|鬼魂|幽灵|怪物|巨人|侏儒|向导|追兵|刺客|陌客
 身体|眼睛|眼眸|眼神|目光|手掌|双手|双脚|脚步|面孔|脸庞|嘴唇|嘴巴|牙齿|头发|皮肤|骨头|血液|心脏|大脑|脊背|肩膀|手臂|手指|腿脚|额头|耳朵|鼻子|喉咙|胸口|腹部|背部|影子|倒影|伤口|伤疤|血迹
@@ -732,42 +820,28 @@ const DICT_RAW = `
 数字|第一|第二|唯一|无数|无尽|无边|无限|无穷|再次|再一次|又一次|最后|终于|终点|起点|开始|结束|永远|瞬间|短暂|漫长|迫切
 `.trim();
 
-// 构建词典 Set（按长度分桶，供 MMF 使用）
-const DICT = new Set(DICT_RAW.split(/[|\n]+/).map(w=>w.trim()).filter(w=>w.length>=2));
+const DICT = new Set(DICT_RAW.split(/[|\n]+/).map(w => w.trim()).filter(w => w.length >= 2));
 const MAX_WORD_LEN = 6;
 
-// ── 最大正向匹配分词 ──
 function segmentZH(text) {
   const tokens = [];
   let i = 0;
   while (i < text.length) {
     const ch = text[i];
-    // 非中文字符，跳过
     if (!/[\u4e00-\u9fa5]/.test(ch)) { i++; continue; }
     let matched = false;
-    // 从最长到最短尝试匹配
     for (let len = Math.min(MAX_WORD_LEN, text.length - i); len >= 2; len--) {
       const word = text.slice(i, i + len);
-      // 检查 word 每个字都是中文
       if (!/^[\u4e00-\u9fa5]+$/.test(word)) continue;
-      if (DICT.has(word)) {
-        tokens.push(word);
-        i += len;
-        matched = true;
-        break;
-      }
+      if (DICT.has(word)) { tokens.push(word); i += len; matched = true; break; }
     }
-    if (!matched) {
-      // 单字不收录——单字几乎不构成有意义的梦境意象
-      i++;
-    }
+    if (!matched) { i++; }
   }
   return tokens;
 }
 
 function tokenize(text) {
   const tokens = [];
-  // 中文分词（最大正向匹配）
   const zhSegs = text.match(/[\u4e00-\u9fa5，。！？、；：""''（）【】…—\s]+/g) || [];
   for (const seg of zhSegs) {
     const pure = seg.replace(/[^\u4e00-\u9fa5]/g, ' ');
@@ -775,7 +849,6 @@ function tokenize(text) {
       tokens.push(...segmentZH(chunk));
     }
   }
-  // 英文词
   const enSegs = text.toLowerCase().match(/[a-z]{3,}/g) || [];
   for (const w of enSegs) {
     if (!STOP_EN.has(w)) tokens.push(w);
@@ -784,7 +857,6 @@ function tokenize(text) {
 }
 
 function rebuildSymbols() {
-  // word -> {freq, dates: Set}
   const freq = {};
   for (const entry of Object.values(DB.entries)) {
     const seen = new Set();
@@ -795,133 +867,36 @@ function rebuildSymbols() {
       if (!seen.has(tok)) { freq[tok].dates.push(entry.date); seen.add(tok); }
     }
   }
-  // 只保留2字以上、出现≥3次的词；单字一律排除
-  const candidates = Object.entries(freq).filter(([w,v]) => w.length >= 2 && v.freq >= 3);
-  // Remove shorter tokens that are substrings of a higher-freq longer token
-  const words = candidates.map(([w]) => w).sort((a,b) => b.length - a.length);
+  const candidates = Object.entries(freq).filter(([w, v]) => w.length >= 2 && v.freq >= 3);
+  const words = candidates.map(([w]) => w).sort((a, b) => b.length - a.length);
   const keep = new Set();
   for (const w of words) {
     const dominated = [...keep].some(k => k.includes(w) && freq[k].freq >= freq[w].freq * 0.6);
     if (!dominated) keep.add(w);
   }
+  // Preserve custom symbols and their group memberships
+  const customSymbols = Object.fromEntries(
+    Object.entries(DB.symbols).filter(([, v]) => v.custom)
+  );
   DB.symbols = {};
   for (const [w, v] of candidates) {
     if (!keep.has(w)) continue;
-    v.dates.sort((a,b) => b.localeCompare(a));
+    v.dates.sort((a, b) => b.localeCompare(a));
     DB.symbols[w] = { word: w, freq: v.freq, days: v.dates.length, dates: v.dates };
   }
-}
-
-// ══════════════════════════════════════════════════════
-// NAVIGATION
-// ══════════════════════════════════════════════════════
-function showPage(id, pushHistory = true) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
-  document.querySelectorAll('.nav-btn[data-page]').forEach(b => {
-    b.classList.toggle('active', b.dataset.page === id);
-  });
-  if (pushHistory && (navHistory[navHistory.length-1] !== id)) navHistory.push(id);
-  window.scrollTo(0,0);
-}
-
-function goBack(defaultPage) {
-  navHistory.pop();
-  const prev = navHistory[navHistory.length-1] || defaultPage;
-  showPage(prev, false);
-}
-
-// Override history.go(-1) for SPA
-window.history.go = (n) => {
-  if (n === -1) {
-    navHistory.pop();
-    const prev = navHistory[navHistory.length-1] || 'symbols';
-    showPage(prev, false);
+  for (const [w, v] of Object.entries(customSymbols)) {
+    if (!DB.symbols[w]) DB.symbols[w] = v;
   }
-};
-
-// ══════════════════════════════════════════════════════
-// DASHBOARD
-// ══════════════════════════════════════════════════════
-function renderDashboard() {
-  const entries = Object.values(DB.entries).sort((a,b) => b.date.localeCompare(a.date));
-  const symbols = Object.values(DB.symbols);
-  if (entries.length === 0) return;
-
-  const years = [...new Set(entries.map(e => e.year))];
-  const dateRange = entries.length
-    ? `${entries[entries.length-1].date} — ${entries[0].date}`
-    : '';
-  document.getElementById('dash-range').textContent = dateRange;
-
-  document.getElementById('stats-grid').innerHTML = `
-    <div class="stat-card"><div class="stat-val">${entries.length}</div><div class="stat-label">梦境记录</div></div>
-    <div class="stat-card"><div class="stat-val">${symbols.length}</div><div class="stat-label">提取符号</div></div>
-    <div class="stat-card"><div class="stat-val">${[...new Set(entries.map(e=>e.year+'.'+String(e.month).padStart(2,'0')))].length}</div><div class="stat-label">跨越月份</div></div>
-    <div class="stat-card"><div class="stat-val">${years.length}</div><div class="stat-label">记录年份</div></div>
-  `;
-
-  const top = symbols.sort((a,b)=>b.freq-a.freq).slice(0,12);
-  const maxFreq = top[0]?.freq || 1;
-  document.getElementById('dash-top-symbols').innerHTML = top.map(s => `
-    <div class="symbol-card" onclick="openSymbol('${esc(s.word)}')">
-      <span class="symbol-word">${esc(s.word)}</span>
-      <span class="symbol-count">${s.freq}</span>
-    </div>
-  `).join('');
-
-  document.getElementById('dash-recent').innerHTML = entries.slice(0,8).map(e => `
-    <div class="tl-entry" onclick="openEntry('${e.date}')">
-      <div class="tl-date">${e.date}</div>
-      <div class="tl-preview">${esc(e.content.slice(0,120))}</div>
-    </div>
-  `).join('');
 }
 
 // ══════════════════════════════════════════════════════
-// SYMBOLS
+// EXCLUSIVE COUNTING (always on)
 // ══════════════════════════════════════════════════════
-function populateFilters() {
-  const years = [...new Set(Object.values(DB.entries).map(e => e.year))].sort((a,b)=>b-a);
-  const yearSel = document.getElementById('sym-year');
-  yearSel.innerHTML = '<option value="">全部年份</option>' +
-    years.map(y => `<option value="${y}">${y}</option>`).join('');
-
-  const months = [...new Set(Object.values(DB.entries).map(e => e.month))].sort((a,b)=>a-b);
-  const monthSel = document.getElementById('sym-month');
-  monthSel.innerHTML = '<option value="">全部月份</option>' +
-    months.map(m => `<option value="${m}">${m}月</option>`).join('');
-}
-
-function setSeason(el) {
-  currentSeason = el.dataset.season;
-  document.querySelectorAll('.filter-chip[data-season]').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  renderSymbols();
-}
-
-function setSort(el) {
-  currentSymbolSort = el.dataset.sort;
-  document.querySelectorAll('.sort-opt').forEach(s => s.classList.remove('active'));
-  el.classList.add('active');
-  renderSymbols();
-}
-
-function toggleExclusion() {
-  exclusionMode = !exclusionMode;
-  document.getElementById('excl-indicator').textContent = exclusionMode ? '●' : '○';
-  document.getElementById('excl-indicator').style.color = exclusionMode ? 'var(--moon)' : 'var(--text-dim)';
-  document.getElementById('excl-toggle').classList.toggle('active', exclusionMode);
-  renderSymbols();
-}
-
-// 计算 word 在 text 中"纯净"出现次数：排除被符号库中更长词覆盖的位置
 function countExclusive(word, text) {
-  const re = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g');
-  // 只关心符号库里比 word 更长、且包含 word 的词
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(escaped, 'g');
   const blockers = Object.keys(DB.symbols).filter(s => s !== word && s.includes(word));
   if (blockers.length === 0) return (text.match(re) || []).length;
-
   let count = 0;
   let m;
   while ((m = re.exec(text)) !== null) {
@@ -937,7 +912,6 @@ function countExclusive(word, text) {
   return count;
 }
 
-// 当互斥模式开启时，重新计算某符号的有效天数和总次数
 function getExclusiveStats(word, validDates) {
   let days = 0, freq = 0;
   const dates = [];
@@ -946,67 +920,225 @@ function getExclusiveStats(word, validDates) {
     const c = countExclusive(word, entry.content);
     if (c > 0) { days++; freq += c; dates.push(entry.date); }
   }
-  dates.sort((a,b) => b.localeCompare(a));
+  dates.sort((a, b) => b.localeCompare(a));
   return { days, freq, dates };
 }
 
+// ══════════════════════════════════════════════════════
+// GROUPS (符号组)
+// ══════════════════════════════════════════════════════
+function newGroupId() {
+  return 'g_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+}
+
+function getWordGroup(word) {
+  for (const g of Object.values(DB.groups)) {
+    if (g.words.includes(word)) return g;
+  }
+  return null;
+}
+
+function getGroupStats(group, validDates) {
+  // Merge exclusive stats for all member words
+  const dateSet = new Set();
+  let totalFreq = 0;
+  for (const word of group.words) {
+    if (DB.blocked.includes(word)) continue;
+    const stats = getExclusiveStats(word, validDates);
+    for (const d of stats.dates) dateSet.add(d);
+    totalFreq += stats.freq;
+  }
+  const dates = [...dateSet].sort((a, b) => b.localeCompare(a));
+  return { days: dates.length, freq: totalFreq, dates };
+}
+
+// ══════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════
+function showPage(id, pushHistory) {
+  if (pushHistory === undefined) pushHistory = true;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.querySelectorAll('.nav-btn[data-page]').forEach(b => {
+    b.classList.toggle('active', b.dataset.page === id);
+  });
+  if (pushHistory && navHistory[navHistory.length - 1] !== id) navHistory.push(id);
+  window.scrollTo(0, 0);
+}
+
+window.history.go = function(n) {
+  if (n === -1) {
+    navHistory.pop();
+    const prev = navHistory[navHistory.length - 1] || 'symbols';
+    showPage(prev, false);
+  }
+};
+
+// ══════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════
+function renderDashboard() {
+  const entries = Object.values(DB.entries).sort((a, b) => b.date.localeCompare(a.date));
+  if (entries.length === 0) return;
+  const years = [...new Set(entries.map(e => e.year))];
+  const dateRange = `${entries[entries.length - 1].date} — ${entries[0].date}`;
+  document.getElementById('dash-range').textContent = dateRange;
+  const symCount = Object.keys(DB.symbols).length;
+  const groupCount = Object.keys(DB.groups).length;
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card"><div class="stat-val">${entries.length}</div><div class="stat-label">梦境记录</div></div>
+    <div class="stat-card"><div class="stat-val">${symCount}</div><div class="stat-label">提取符号</div></div>
+    <div class="stat-card"><div class="stat-val">${groupCount}</div><div class="stat-label">符号组</div></div>
+    <div class="stat-card"><div class="stat-val">${years.length}</div><div class="stat-label">记录年份</div></div>
+  `;
+  const top = Object.values(DB.symbols).sort((a, b) => b.freq - a.freq).slice(0, 12);
+  document.getElementById('dash-top-symbols').innerHTML = top.map(s => `
+    <div class="symbol-card" onclick="openSymbol('${esc(s.word)}')">
+      <span class="symbol-word">${esc(s.word)}</span>
+      <span class="symbol-count">${s.freq}</span>
+    </div>
+  `).join('');
+  document.getElementById('dash-recent').innerHTML = entries.slice(0, 8).map(e => `
+    <div class="tl-entry" onclick="openEntry('${e.date}')">
+      <div class="tl-date">${e.date}</div>
+      <div class="tl-preview">${esc(e.content.slice(0, 120))}</div>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// SYMBOLS PAGE
+// ══════════════════════════════════════════════════════
+function populateFilters() {
+  const years = [...new Set(Object.values(DB.entries).map(e => e.year))].sort((a, b) => b - a);
+  document.getElementById('sym-year').innerHTML = '<option value="">全部年份</option>' +
+    years.map(y => `<option value="${y}">${y}</option>`).join('');
+  const months = [...new Set(Object.values(DB.entries).map(e => e.month))].sort((a, b) => a - b);
+  document.getElementById('sym-month').innerHTML = '<option value="">全部月份</option>' +
+    months.map(m => `<option value="${m}">${m}月</option>`).join('');
+}
+
+function setSeason(el) {
+  currentSeason = el.dataset.season;
+  document.querySelectorAll('.filter-chip[data-season]').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderSymbols();
+}
+
+function setSort(el) {
+  currentSymbolSort = el.dataset.sort;
+  document.querySelectorAll('.sort-opt[data-sort]').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  renderSymbols();
+}
+
+function setFilter(el) {
+  currentFilter = el.dataset.filter;
+  document.querySelectorAll('.filter-mode-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderSymbols();
+}
+
+function toggleEditMode() {
+  editMode = !editMode;
+  selectedWords.clear();
+  document.getElementById('edit-mode-btn').textContent = editMode ? '完成' : '编辑';
+  document.getElementById('edit-mode-btn').classList.toggle('active', editMode);
+  document.getElementById('edit-action-bar').style.display = editMode ? 'flex' : 'none';
+  renderSymbols();
+}
+
+function toggleSelectWord(word) {
+  if (selectedWords.has(word)) {
+    selectedWords.delete(word);
+  } else {
+    selectedWords.add(word);
+  }
+  renderSymbols();
+}
 
 function renderSymbols() {
   const search = document.getElementById('sym-search').value.trim().toLowerCase();
   const filterYear = document.getElementById('sym-year').value;
   const filterMonth = document.getElementById('sym-month').value;
 
-  // Determine valid dates by filters
   const validDates = new Set(
-    Object.values(DB.entries)
-      .filter(e => {
-        if (filterYear && e.year != filterYear) return false;
-        if (filterMonth && e.month != filterMonth) return false;
-        if (currentSeason && e.season !== currentSeason) return false;
-        return true;
-      })
-      .map(e => e.date)
+    Object.values(DB.entries).filter(e => {
+      if (filterYear && e.year != filterYear) return false;
+      if (filterMonth && e.month != filterMonth) return false;
+      if (currentSeason && e.season !== currentSeason) return false;
+      return true;
+    }).map(e => e.date)
   );
 
-  let syms = Object.values(DB.symbols).map(s => {
-    if (exclusionMode) {
-      const ex = getExclusiveStats(s.word, validDates);
-      return { ...s, filteredFreq: ex.days, filteredTotalFreq: ex.freq, filteredDates: ex.dates, exclusive: true };
-    }
-    const filteredDates = s.dates.filter(d => validDates.has(d));
-    return { ...s, filteredFreq: filteredDates.length, filteredTotalFreq: s.freq, filteredDates };
-  }).filter(s => s.filteredFreq > 0 && !(DB.blocked||[]).includes(s.word));
-
-  if (search) syms = syms.filter(s => s.word.toLowerCase().includes(search));
-
-  if (currentSymbolSort === 'freq') syms.sort((a,b) => b.filteredFreq - a.filteredFreq);
-  else if (currentSymbolSort === 'recent') syms.sort((a,b) => {
-    const la = a.filteredDates[0] || '';
-    const lb = b.filteredDates[0] || '';
-    return lb.localeCompare(la);
-  });
-  else syms.sort((a,b) => a.word.localeCompare(b.word, 'zh'));
-
   const blocked = DB.blocked || [];
-  document.getElementById('sym-count-label').textContent =
-    `${syms.length} 个符号${blocked.length ? ' · ' + blocked.length + ' 个已屏蔽' : ''}`;
+  const starred = DB.starred || [];
 
-  if (syms.length === 0) {
-    document.getElementById('symbols-grid').innerHTML =
-      '<div class="empty-state">当前筛选条件下无符号</div>';
-  } else {
-    document.getElementById('symbols-grid').innerHTML = syms.map(s => `
-      <div class="symbol-card" style="padding-right:.6rem" onclick="openSymbol('${esc(s.word)}')">
-        <span class="symbol-word">${esc(s.word)}</span>
-        <span style="display:flex;align-items:center;gap:.5rem">
-          <span class="symbol-count" style="font-size:.85rem;opacity:.8" title="${s.filteredFreq}天 / ${s.filteredTotalFreq}次总计">${s.filteredFreq}d · ${s.filteredTotalFreq}×</span>
-          <span class="block-btn" title="屏蔽此符号" onclick="event.stopPropagation();blockSymbol('${esc(s.word)}')">✕</span>
-        </span>
-      </div>
-    `).join('');
+  // Words that belong to a group (hide from main list in non-edit mode)
+  const groupedWords = new Set();
+  for (const g of Object.values(DB.groups)) {
+    for (const w of g.words) groupedWords.add(w);
   }
 
-  // 已屏蔽区域
+  // --- Build groups display ---
+  let groupItems = Object.values(DB.groups).map(g => {
+    const stats = getGroupStats(g, validDates);
+    return { ...g, days: stats.days, freq: stats.freq, dates: stats.dates, isGroup: true };
+  }).filter(g => g.days > 0);
+
+  // --- Build symbol display (ungrouped, unblocked) ---
+  let symItems = Object.values(DB.symbols).map(s => {
+    const ex = getExclusiveStats(s.word, validDates);
+    return { ...s, days: ex.days, freq: ex.freq, dates: ex.dates };
+  }).filter(s => {
+    if (s.days === 0) return false;
+    if (blocked.includes(s.word)) return false;
+    if (!editMode && groupedWords.has(s.word)) return false;
+    return true;
+  });
+
+  // Apply search
+  if (search) {
+    groupItems = groupItems.filter(g => g.name.toLowerCase().includes(search) ||
+      g.words.some(w => w.toLowerCase().includes(search)));
+    symItems = symItems.filter(s => s.word.toLowerCase().includes(search));
+  }
+
+  // Apply filter mode
+  if (currentFilter === 'starred') {
+    groupItems = groupItems.filter(g => starred.includes(g.id));
+    symItems = symItems.filter(s => starred.includes(s.word));
+  } else if (currentFilter === 'groups') {
+    symItems = [];
+  }
+
+  // Sort
+  const sortFn = (a, b) => {
+    const aKey = a.isGroup ? a.name : a.word;
+    const bKey = b.isGroup ? b.name : b.word;
+    if (currentSymbolSort === 'freq') return b.days - a.days || b.freq - a.freq;
+    if (currentSymbolSort === 'recent') return (b.dates[0] || '').localeCompare(a.dates[0] || '');
+    return aKey.localeCompare(bKey, 'zh');
+  };
+  groupItems.sort(sortFn);
+  symItems.sort(sortFn);
+
+  const totalCount = groupItems.length + symItems.length;
+  document.getElementById('sym-count-label').textContent =
+    `${symItems.length} 个符号 · ${groupItems.length} 个符号组${blocked.length ? ' · ' + blocked.length + ' 已屏蔽' : ''}`;
+
+  // Update selected count display
+  document.getElementById('selected-count').textContent = selectedWords.size > 0 ? `已选 ${selectedWords.size}` : '';
+
+  if (totalCount === 0) {
+    document.getElementById('symbols-grid').innerHTML = '<div class="empty-state">当前筛选条件下无符号</div>';
+  } else {
+    const groupHtml = groupItems.map(g => renderGroupCard(g)).join('');
+    const symHtml = symItems.map(s => renderSymbolCard(s)).join('');
+    document.getElementById('symbols-grid').innerHTML = groupHtml + symHtml;
+  }
+
+  // Blocked panel
   const blockedPanel = document.getElementById('blocked-panel');
   if (blocked.length === 0) {
     blockedPanel.style.display = 'none';
@@ -1020,93 +1152,172 @@ function renderSymbols() {
   }
 }
 
+function renderGroupCard(g) {
+  const isStarred = (DB.starred || []).includes(g.id);
+  const isSelected = selectedWords.has(g.id);
+  return `<div class="symbol-card group-card${isSelected ? ' selected' : ''}"
+    onclick="${editMode ? `toggleSelectWord('${esc(g.id)}')` : `openGroup('${esc(g.id)}')`}"
+    style="padding-right:.6rem">
+    ${editMode ? `<input type="checkbox" class="sym-checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation();toggleSelectWord('${esc(g.id)}')" style="margin-right:.5rem;accent-color:var(--gold)">` : ''}
+    <span class="symbol-word" style="color:var(--gold)">${esc(g.name)}</span>
+    <span style="display:flex;align-items:center;gap:.4rem">
+      <span class="symbol-count" style="font-size:.8rem;opacity:.8;color:var(--gold)">${g.days}d · ${g.freq}×</span>
+      <span class="star-btn${isStarred ? ' starred' : ''}" title="${isStarred ? '取消星标' : '星标'}"
+        onclick="event.stopPropagation();toggleStar('${esc(g.id)}')">${isStarred ? '★' : '☆'}</span>
+    </span>
+  </div>`;
+}
+
+function renderSymbolCard(s) {
+  const isStarred = (DB.starred || []).includes(s.word);
+  const isSelected = editMode && selectedWords.has(s.word);
+  return `<div class="symbol-card${isSelected ? ' selected' : ''}"
+    onclick="${editMode ? `toggleSelectWord('${esc(s.word)}')` : `openSymbol('${esc(s.word)}')`}"
+    style="padding-right:.6rem">
+    ${editMode ? `<input type="checkbox" class="sym-checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation();toggleSelectWord('${esc(s.word)}')" style="margin-right:.5rem;accent-color:var(--moon)">` : ''}
+    <span class="symbol-word">${esc(s.word)}</span>
+    <span style="display:flex;align-items:center;gap:.4rem">
+      <span class="symbol-count" style="font-size:.85rem;opacity:.8">${s.days}d · ${s.freq}×</span>
+      <span class="star-btn${isStarred ? ' starred' : ''}" title="${isStarred ? '取消星标' : '星标'}"
+        onclick="event.stopPropagation();toggleStar('${esc(s.word)}')">${isStarred ? '★' : '☆'}</span>
+      ${!editMode ? `<span class="block-btn" title="屏蔽" onclick="event.stopPropagation();blockSymbol('${esc(s.word)}')">✕</span>` : ''}
+    </span>
+  </div>`;
+}
+
 // ══════════════════════════════════════════════════════
-// BLOCK / UNBLOCK SYMBOLS
+// STAR
+// ══════════════════════════════════════════════════════
+function toggleStar(key) {
+  if (!DB.starred) DB.starred = [];
+  const idx = DB.starred.indexOf(key);
+  if (idx === -1) {
+    DB.starred.push(key);
+    toast('已加星标');
+  } else {
+    DB.starred.splice(idx, 1);
+    toast('已取消星标');
+  }
+  save();
+  renderSymbols();
+}
+
+// ══════════════════════════════════════════════════════
+// BLOCK
 // ══════════════════════════════════════════════════════
 function blockSymbol(word) {
   if (!DB.blocked) DB.blocked = [];
   if (!DB.blocked.includes(word)) DB.blocked.push(word);
   save(); renderSymbols(); toast(`「${word}」已屏蔽`);
 }
+
 function unblockSymbol(word) {
   DB.blocked = (DB.blocked || []).filter(w => w !== word);
   save(); renderSymbols(); toast(`「${word}」已恢复`);
 }
 
 // ══════════════════════════════════════════════════════
-// CUSTOM WORD SEARCH
+// EDIT MODE ACTIONS
 // ══════════════════════════════════════════════════════
-function searchCustomWord() {
-  const input = document.getElementById('custom-word-input');
-  const word = input.value.trim();
-  const resultBox = document.getElementById('custom-search-result');
-  if (!word) { resultBox.style.display = 'none'; return; }
-
-  // 在所有条目全文中查找（字符串包含匹配，不依赖分词）
-  const hits = Object.values(DB.entries)
-    .filter(e => e.content.includes(word))
-    .sort((a,b) => b.date.localeCompare(a.date));
-
-  if (hits.length === 0) {
-    resultBox.style.display = 'block';
-    resultBox.innerHTML = `<span style="color:var(--text-dim)">「${esc(word)}」在全部记录中未找到。</span>`;
-    return;
+function batchBlock() {
+  if (selectedWords.size === 0) return;
+  const words = [...selectedWords].filter(k => !k.startsWith('g_'));
+  for (const w of words) {
+    if (!DB.blocked.includes(w)) DB.blocked.push(w);
   }
-
-  const alreadyExists = !!DB.symbols[word];
-  const datesHtml = hits.map(e =>
-    `<span class="date-chip" onclick="openEntryFromSymbol('${esc(e.date)}','${esc(word)}')" style="display:inline-block;margin:.2rem .3rem .2rem 0">${e.date}</span>`
-  ).join('');
-
-  resultBox.style.display = 'block';
-  resultBox.innerHTML = `
-    <div style="display:flex;align-items:baseline;gap:1rem;margin-bottom:.8rem;flex-wrap:wrap">
-      <span style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:var(--moon);letter-spacing:.1em">${esc(word)}</span>
-      <span style="color:var(--text-dim);font-size:.8rem">出现于 ${hits.length} 条记录</span>
-      ${alreadyExists
-        ? `<span style="color:var(--gold);font-size:.78rem;letter-spacing:.06em">✓ 已在符号库中</span>`
-        : `<button class="btn-primary" style="padding:.35rem .9rem;font-size:.78rem" onclick="addCustomSymbol('${esc(word)}')">加入符号库</button>`
-      }
-    </div>
-    <div>${datesHtml}</div>
-  `;
+  selectedWords.clear();
+  save(); renderSymbols(); toast(`已屏蔽 ${words.length} 个符号`);
 }
 
-function addCustomSymbol(word) {
-  // 全文匹配统计（每条记录中出现次数之和，按日期去重记录）
-  let totalFreq = 0;
-  const dates = [];
-  for (const entry of Object.values(DB.entries)) {
-    const count = (entry.content.match(new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g')) || []).length;
-    if (count > 0) {
-      totalFreq += count;
-      dates.push(entry.date);
-    }
+function createGroupFromSelected() {
+  const words = [...selectedWords].filter(k => !k.startsWith('g_') && DB.symbols[k]);
+  if (words.length < 2) { toast('请至少选择2个符号', true); return; }
+  const name = prompt('符号组名称：');
+  if (!name || !name.trim()) return;
+  const id = newGroupId();
+  DB.groups[id] = { id, name: name.trim(), words };
+  selectedWords.clear();
+  save(); renderSymbols(); toast(`符号组「${name.trim()}」已创建`);
+}
+
+function addSelectedToGroup() {
+  const words = [...selectedWords].filter(k => !k.startsWith('g_') && DB.symbols[k]);
+  if (words.length === 0) { toast('请先选择符号', true); return; }
+  const groups = Object.values(DB.groups);
+  if (groups.length === 0) { toast('暂无符号组，请先创建', true); return; }
+  const options = groups.map((g, i) => `${i + 1}. ${g.name}`).join('\n');
+  const input = prompt(`选择要加入的符号组（输入编号）：\n${options}`);
+  if (!input) return;
+  const idx = parseInt(input) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= groups.length) { toast('编号无效', true); return; }
+  const group = groups[idx];
+  for (const w of words) {
+    if (!group.words.includes(w)) group.words.push(w);
   }
-  dates.sort((a,b) => b.localeCompare(a));
-  DB.symbols[word] = { word, freq: totalFreq, days: dates.length, dates, custom: true };
-  save();
-  renderSymbols();
-  toast(`「${word}」已加入符号库`);
-  // 刷新结果区域，按钮变成已添加状态
-  searchCustomWord();
+  selectedWords.clear();
+  save(); renderSymbols(); toast(`已加入符号组「${group.name}」`);
+}
+
+// ══════════════════════════════════════════════════════
+// GROUP DETAIL
+// ══════════════════════════════════════════════════════
+function openGroup(groupId) {
+  const g = DB.groups[groupId];
+  if (!g) return;
+  document.getElementById('group-detail-name').textContent = g.name;
+  const isStarred = (DB.starred || []).includes(g.id);
+  document.getElementById('group-detail-star').textContent = isStarred ? '★' : '☆';
+  document.getElementById('group-detail-star').classList.toggle('starred', isStarred);
+  document.getElementById('group-detail-star').onclick = function() { toggleStar(g.id); openGroup(groupId); };
+
+  const memberHtml = g.words.map(w => {
+    const s = DB.symbols[w];
+    if (!s) return '';
+    const ex = getExclusiveStats(w, null);
+    return `<div class="symbol-card" onclick="openSymbol('${esc(w)}')" style="cursor:pointer">
+      <span class="symbol-word">${esc(w)}</span>
+      <span class="symbol-count" style="font-size:.82rem">${ex.days}d · ${ex.freq}×</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('group-detail-members').innerHTML = memberHtml ||
+    '<div class="empty-state" style="padding:2rem">组内暂无符号</div>';
+
+  // Remove a word from group
+  document.getElementById('group-detail-edit').onclick = function() { editGroupWords(groupId); };
+
+  showPage('group-detail');
+}
+
+function editGroupWords(groupId) {
+  const g = DB.groups[groupId];
+  if (!g) return;
+  const list = g.words.join('，');
+  const input = prompt(`当前成员：${list}\n\n输入要移除的符号（留空取消）：`);
+  if (!input || !input.trim()) return;
+  const toRemove = input.trim();
+  const idx = g.words.indexOf(toRemove);
+  if (idx === -1) { toast(`「${toRemove}」不在组内`, true); return; }
+  g.words.splice(idx, 1);
+  if (g.words.length === 0) {
+    delete DB.groups[groupId];
+    save(); renderSymbols(); showPage('symbols'); toast(`符号组已解散`);
+    return;
+  }
+  save(); openGroup(groupId); toast(`「${toRemove}」已从组内移除`);
 }
 
 // ══════════════════════════════════════════════════════
 // SYMBOL DETAIL
 // ══════════════════════════════════════════════════════
-
-// 提取词语在某条梦境中的前后文（每次出现都显示，最多3处）
-// 互斥模式下，被更长符号覆盖的出现会标灰
 function getContextSnippet(date, word) {
   const entry = DB.entries[date];
   if (!entry) return '';
   const text = entry.content;
-  const re = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g');
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(escaped, 'g');
   const CONTEXT = 18;
-  const blockers = exclusionMode
-    ? Object.keys(DB.symbols).filter(s => s !== word && s.includes(word))
-    : [];
+  const blockers = Object.keys(DB.symbols).filter(s => s !== word && s.includes(word));
   const snippets = [];
   let m;
   while ((m = re.exec(text)) !== null && snippets.length < 3) {
@@ -1117,17 +1328,15 @@ function getContextSnippet(date, word) {
       if (start < 0 || start + blocker.length > text.length) return false;
       return text.slice(start, start + blocker.length) === blocker;
     });
+    if (dominated) continue; // skip dominated hits entirely
     const start = Math.max(0, pos - CONTEXT);
-    const end   = Math.min(text.length, pos + word.length + CONTEXT);
-    const pre   = esc(text.slice(start, pos));
-    const hit   = esc(word);
-    const post  = esc(text.slice(pos + word.length, end));
+    const end = Math.min(text.length, pos + word.length + CONTEXT);
+    const pre = esc(text.slice(start, pos));
+    const hit = esc(word);
+    const post = esc(text.slice(pos + word.length, end));
     const prefix = start > 0 ? '…' : '';
     const suffix = end < text.length ? '…' : '';
-    const hlStyle = dominated
-      ? 'style="opacity:.35;text-decoration:line-through"'
-      : '';
-    snippets.push(`${prefix}${pre}<span class="ctx-hl" ${hlStyle}>${hit}</span>${post}${suffix}`);
+    snippets.push(`${prefix}${pre}<span class="ctx-hl">${hit}</span>${post}${suffix}`);
   }
   return snippets.join('<br><br>');
 }
@@ -1135,38 +1344,34 @@ function getContextSnippet(date, word) {
 function openSymbol(word) {
   const s = DB.symbols[word];
   if (!s) return;
+  const ex = getExclusiveStats(word, null);
   document.getElementById('detail-word').textContent = word;
+  document.getElementById('detail-freq').textContent = `${ex.days} 天 · ${ex.freq} 次`;
 
-  // 互斥模式：重新计算并过滤掉被长词覆盖的出现
-  let activeDates = s.dates;
-  let displayFreq = s.freq;
-  let displayDays = s.dates.length;
-  if (exclusionMode) {
-    const ex = getExclusiveStats(word, null);
-    activeDates = ex.dates;
-    displayFreq = ex.freq;
-    displayDays = ex.days;
-  }
+  // Group membership badge
+  const group = getWordGroup(word);
+  const groupBadge = group
+    ? `<div style="margin-bottom:1.5rem">
+        <span style="font-size:.78rem;color:var(--text-dim)">所属符号组：</span>
+        <span class="group-badge" onclick="openGroup('${esc(group.id)}')">${esc(group.name)} →</span>
+       </div>`
+    : '';
 
-  document.getElementById('detail-freq').textContent =
-    `${displayDays} 天 · ${displayFreq} 次${exclusionMode ? '（互斥）' : ''}`;
-
-  // Group dates by year-month
+  const SEASON_ZH = { spring: '春', summer: '夏', autumn: '秋', winter: '冬' };
   const groups = {};
-  for (const d of activeDates) {
-    const [y,m] = d.split('.');
-    const key = `${y}.${m}`;
+  for (const d of ex.dates) {
+    const [y, mo] = d.split('.');
+    const key = `${y}.${mo}`;
     if (!groups[key]) groups[key] = [];
     groups[key].push(d);
   }
 
-  const SEASON_ZH = {spring:'春',summer:'夏',autumn:'秋',winter:'冬'};
-  let html = '';
-  for (const [ym, dates] of Object.entries(groups).sort((a,b)=>b[0].localeCompare(a[0]))) {
-    const [y,m] = ym.split('.');
-    const season = SEASON_ZH[getSeason(parseInt(m))];
+  let html = groupBadge;
+  for (const [ym, dates] of Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]))) {
+    const [y, mo] = ym.split('.');
+    const season = SEASON_ZH[getSeason(parseInt(mo))];
     html += `<div class="month-section">
-      <div class="month-label">${y} 年 ${parseInt(m)} 月 · ${season}</div>
+      <div class="month-label">${y} 年 ${parseInt(mo)} 月 · ${season}</div>
       <div class="date-chips">
         ${dates.map(d => {
           const snippet = getContextSnippet(d, word);
@@ -1178,7 +1383,7 @@ function openSymbol(word) {
       </div>
     </div>`;
   }
-  document.getElementById('detail-dates').innerHTML = html;
+  document.getElementById('detail-dates').innerHTML = html || '<div class="empty-state">互斥过滤后无有效出现</div>';
   showPage('symbol-detail');
 }
 
@@ -1189,7 +1394,7 @@ function openEntryFromSymbol(date, word) {
 // ══════════════════════════════════════════════════════
 // ENTRY VIEW
 // ══════════════════════════════════════════════════════
-const SEASON_NAMES = {spring:'春·',summer:'夏·',autumn:'秋·',winter:'冬·'};
+const SEASON_NAMES = { spring: '春·', summer: '夏·', autumn: '秋·', winter: '冬·' };
 let currentEntryDate = null;
 
 function openEntry(date, highlightWord) {
@@ -1198,7 +1403,7 @@ function openEntry(date, highlightWord) {
   currentEntryDate = date;
   document.getElementById('entry-date').textContent = date;
   document.getElementById('entry-season').textContent =
-    (SEASON_NAMES[e.season] || '') + ['一','二','三','四','五','六','七','八','九','十','十一','十二'][e.month-1] + '月';
+    (SEASON_NAMES[e.season] || '') + ['一','二','三','四','五','六','七','八','九','十','十一','十二'][e.month - 1] + '月';
   let body = esc(e.content);
   if (highlightWord) {
     const hw = esc(highlightWord);
@@ -1226,18 +1431,17 @@ function confirmEditContent() {
   rebuildSymbols();
   save();
   closeEditContentModal();
-  // Refresh entry view
   openEntry(currentEntryDate);
   renderDashboard(); renderTimeline();
   toast('内容已保存，符号已重新分析');
 }
 
-
 function openEditDate() {
   if (!currentEntryDate) return;
+  document.getElementById('edit-date-current').textContent = currentEntryDate;
   document.getElementById('edit-date-input').value = currentEntryDate;
   document.getElementById('edit-date-modal').classList.add('open');
-  setTimeout(() => document.getElementById('edit-date-input').select(), 50);
+  setTimeout(function() { document.getElementById('edit-date-input').select(); }, 50);
 }
 
 function closeEditDateModal() {
@@ -1246,33 +1450,27 @@ function closeEditDateModal() {
 
 function confirmEditDate() {
   const raw = document.getElementById('edit-date-input').value.trim();
-  const m = raw.match(/^(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})$/);
+  const m = raw.match(/^(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})$/);
   if (!m) { toast('格式不正确，请用 yyyy.mm.dd', true); return; }
   const year = parseInt(m[1]), month = parseInt(m[2]), day = parseInt(m[3]);
-  const newDate = `${year}.${String(month).padStart(2,'0')}.${String(day).padStart(2,'0')}`;
+  const newDate = `${year}.${String(month).padStart(2, '0')}.${String(day).padStart(2, '0')}`;
   if (newDate === currentEntryDate) { closeEditDateModal(); return; }
   if (DB.entries[newDate]) { toast('该日期已存在记录，无法覆盖', true); return; }
-
-  // Move entry
   const entry = { ...DB.entries[currentEntryDate], date: newDate, year, month, day, season: getSeason(month) };
   delete DB.entries[currentEntryDate];
   DB.entries[newDate] = entry;
-
-  // Update symbol date references
   for (const sym of Object.values(DB.symbols)) {
     const idx = sym.dates.indexOf(currentEntryDate);
-    if (idx !== -1) { sym.dates[idx] = newDate; sym.dates.sort((a,b)=>b.localeCompare(a)); }
+    if (idx !== -1) { sym.dates[idx] = newDate; sym.dates.sort((a, b) => b.localeCompare(a)); }
   }
-
   const oldDate = currentEntryDate;
   currentEntryDate = newDate;
   save();
   closeEditDateModal();
   renderDashboard(); renderTimeline();
-  // Refresh current entry view
   document.getElementById('entry-date').textContent = newDate;
   document.getElementById('entry-season').textContent =
-    (SEASON_NAMES[entry.season] || '') + ['一','二','三','四','五','六','七','八','九','十','十一','十二'][month-1] + '月';
+    (SEASON_NAMES[entry.season] || '') + ['一','二','三','四','五','六','七','八','九','十','十一','十二'][month - 1] + '月';
   toast(`日期已从 ${oldDate} 更新为 ${newDate}`);
 }
 
@@ -1280,16 +1478,15 @@ function confirmEditDate() {
 // TIMELINE
 // ══════════════════════════════════════════════════════
 function renderTimeline() {
-  const entries = Object.values(DB.entries).sort((a,b)=>b.date.localeCompare(a.date));
+  const entries = Object.values(DB.entries).sort((a, b) => b.date.localeCompare(a.date));
   if (entries.length === 0) {
-    document.getElementById('timeline-list').innerHTML =
-      '<div class="empty-state">尚无记录</div>';
+    document.getElementById('timeline-list').innerHTML = '<div class="empty-state">尚无记录</div>';
     return;
   }
   document.getElementById('timeline-list').innerHTML = entries.map(e => `
     <div class="tl-entry" onclick="openEntry('${e.date}')">
       <div class="tl-date">${e.date}</div>
-      <div class="tl-preview">${esc(e.content.slice(0,150))}</div>
+      <div class="tl-preview">${esc(e.content.slice(0, 150))}</div>
     </div>
   `).join('');
 }
@@ -1301,9 +1498,11 @@ function openPasteModal() {
   document.getElementById('paste-modal').classList.add('open');
   document.getElementById('paste-area').value = '';
 }
+
 function closePasteModal() {
   document.getElementById('paste-modal').classList.remove('open');
 }
+
 function processPaste() {
   const text = document.getElementById('paste-area').value.trim();
   if (!text) { toast('请先粘贴梦境文本', true); return; }
@@ -1321,45 +1520,97 @@ function processPaste() {
   }
 }
 
+// ══════════════════════════════════════════════════════
+// REBUILD & CLEAR
+// ══════════════════════════════════════════════════════
 function rebuildAndRefresh() {
   if (Object.keys(DB.entries).length === 0) { toast('暂无记录', true); return; }
-  // 保留 custom 符号，重建自动符号
-  const customSymbols = Object.fromEntries(
-    Object.entries(DB.symbols).filter(([,v]) => v.custom)
-  );
   rebuildSymbols();
-  // 重新合并自定义符号（用全文重新统计频率）
-  for (const word of Object.keys(customSymbols)) {
-    let totalFreq = 0; const dates = [];
-    for (const entry of Object.values(DB.entries)) {
-      const count = (entry.content.match(new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'))||[]).length;
-      if (count > 0) { totalFreq += count; dates.push(entry.date); }
+  // Re-sync custom symbols
+  for (const g of Object.values(DB.groups)) {
+    for (const word of g.words) {
+      if (!DB.symbols[word]) {
+        let totalFreq = 0; const dates = [];
+        for (const entry of Object.values(DB.entries)) {
+          const count = (entry.content.match(new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+          if (count > 0) { totalFreq += count; dates.push(entry.date); }
+        }
+        dates.sort((a, b) => b.localeCompare(a));
+        if (totalFreq > 0) DB.symbols[word] = { word, freq: totalFreq, days: dates.length, dates, custom: true };
+      }
     }
-    dates.sort((a,b)=>b.localeCompare(a));
-    if (totalFreq > 0) DB.symbols[word] = { word, freq: totalFreq, dates, custom: true };
   }
   save();
-  renderDashboard(); renderTimeline(); renderSymbols();
+  populateFilters(); renderDashboard(); renderTimeline(); renderSymbols();
   toast('已用最新词典重新分析');
 }
 
 function clearAllData() {
   if (!confirm('确定要清除所有本地数据吗？此操作无法撤销。\n建议先导出备份。')) return;
-  DB = { entries: {}, symbols: {} };
+  DB = { entries: {}, symbols: {}, blocked: [], starred: [], groups: {} };
   localStorage.removeItem(STORAGE_KEY);
   showPage('landing', false);
   navHistory = [];
   toast('已清除全部数据');
 }
 
+// ══════════════════════════════════════════════════════
+// CUSTOM WORD SEARCH
+// ══════════════════════════════════════════════════════
+function searchCustomWord() {
+  const input = document.getElementById('custom-word-input');
+  const word = input.value.trim();
+  const resultBox = document.getElementById('custom-search-result');
+  if (!word) { resultBox.style.display = 'none'; return; }
+  const hits = Object.values(DB.entries).filter(e => e.content.includes(word))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  if (hits.length === 0) {
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = `<span style="color:var(--text-dim)">「${esc(word)}」在全部记录中未找到。</span>`;
+    return;
+  }
+  const alreadyExists = !!DB.symbols[word];
+  const datesHtml = hits.map(e =>
+    `<span class="date-chip" onclick="openEntryFromSymbol('${esc(e.date)}','${esc(word)}')" style="display:inline-block;margin:.2rem .3rem .2rem 0">${e.date}</span>`
+  ).join('');
+  resultBox.style.display = 'block';
+  resultBox.innerHTML = `
+    <div style="display:flex;align-items:baseline;gap:1rem;margin-bottom:.8rem;flex-wrap:wrap">
+      <span style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:var(--moon);letter-spacing:.1em">${esc(word)}</span>
+      <span style="color:var(--text-dim);font-size:.8rem">出现于 ${hits.length} 条记录</span>
+      ${alreadyExists
+        ? `<span style="color:var(--gold);font-size:.78rem;letter-spacing:.06em">✓ 已在符号库中</span>`
+        : `<button class="btn-primary" style="padding:.35rem .9rem;font-size:.78rem" onclick="addCustomSymbol('${esc(word)}')">加入符号库</button>`
+      }
+    </div>
+    <div>${datesHtml}</div>
+  `;
+}
 
+function addCustomSymbol(word) {
+  let totalFreq = 0;
+  const dates = [];
+  for (const entry of Object.values(DB.entries)) {
+    const count = (entry.content.match(new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+    if (count > 0) { totalFreq += count; dates.push(entry.date); }
+  }
+  dates.sort((a, b) => b.localeCompare(a));
+  DB.symbols[word] = { word, freq: totalFreq, days: dates.length, dates, custom: true };
+  save();
+  renderSymbols();
+  toast(`「${word}」已加入符号库`);
+  searchCustomWord();
+}
+
+// ══════════════════════════════════════════════════════
+// EXPORT / IMPORT
 // ══════════════════════════════════════════════════════
 function exportJSON() {
   if (Object.keys(DB.entries).length === 0) { toast('暂无数据可导出', true); return; }
   const blob = new Blob([JSON.stringify(DB, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `梦境志备份_${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `梦境志备份_${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   toast('备份文件已下载');
 }
@@ -1372,20 +1623,21 @@ function handleImport(e) {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = ev => {
+  reader.onload = function(ev) {
     try {
       const data = JSON.parse(ev.target.result);
-      if (!data.entries) throw new Error();
-      // Merge
-      DB.entries = { ...DB.entries, ...data.entries };
+      if (!data.entries) throw new Error('invalid');
+      DB.entries = Object.assign({}, DB.entries, data.entries);
+      if (data.symbols) DB.symbols = Object.assign({}, DB.symbols, data.symbols);
+      if (data.blocked) DB.blocked = [...new Set([...(DB.blocked || []), ...data.blocked])];
+      if (data.starred) DB.starred = [...new Set([...(DB.starred || []), ...data.starred])];
+      if (data.groups) DB.groups = Object.assign({}, DB.groups, data.groups);
       rebuildSymbols();
       save();
-      populateFilters();
-      renderDashboard();
-      renderTimeline();
+      populateFilters(); renderDashboard(); renderTimeline();
       toast(`导入成功，共 ${Object.keys(DB.entries).length} 条记录`);
       if (document.getElementById('page-landing').classList.contains('active')) showPage('dashboard');
-    } catch {
+    } catch (err) {
       toast('文件格式错误，导入失败', true);
     }
   };
@@ -1403,7 +1655,7 @@ function toast(msg, isErr) {
   el.style.borderColor = isErr ? 'rgba(200,120,120,0.4)' : 'var(--border)';
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+  toastTimer = setTimeout(function() { el.classList.remove('show'); }, 2800);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1411,8 +1663,8 @@ function toast(msg, isErr) {
 // ══════════════════════════════════════════════════════
 function esc(s) {
   return String(s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 // ══════════════════════════════════════════════════════
@@ -1420,7 +1672,6 @@ function esc(s) {
 // ══════════════════════════════════════════════════════
 load();
 
-// Nav page renders
 const originalShowPage = showPage;
 window.showPage = function(id, pushHistory) {
   originalShowPage(id, pushHistory);
@@ -1442,8 +1693,6 @@ document.getElementById('edit-content-modal').addEventListener('click', function
 document.getElementById('edit-date-modal').addEventListener('click', function(e) {
   if (e.target === this) closeEditDateModal();
 });
-
-// Close modal on overlay click
 document.getElementById('paste-modal').addEventListener('click', function(e) {
   if (e.target === this) closePasteModal();
 });
