@@ -580,11 +580,10 @@
 <nav>
   <div class="nav-logo" onclick="showPage('dashboard')">梦境志 <span>·</span> Dream Archive</div>
   <div class="nav-links">
-    <button class="nav-btn" onclick="showPage('dashboard')" data-page="dashboard">总览</button>
+    <button class="nav-btn" onclick="showPage('dashboard')" data-page="dashboard">梦境志</button>
     <button class="nav-btn" onclick="showPage('symbols')" data-page="symbols">符号志</button>
     <button class="nav-btn" onclick="showPage('timeline')" data-page="timeline">时间线</button>
     <div class="nav-sep"></div>
-    <button class="nav-btn" onclick="openPasteModal()">＋ 导入文本</button>
     <button class="nav-btn" onclick="importJSON()">导入备份</button>
     <button class="nav-btn" onclick="exportJSON()">导出备份</button>
     <div class="nav-sep"></div>
@@ -612,8 +611,9 @@
 <!-- ── DASHBOARD ──────────────────────────────── -->
 <div id="page-dashboard" class="page">
   <div class="dash-header">
-    <h1>总览</h1>
+    <h1>梦境志</h1>
     <span class="dash-date" id="dash-range"></span>
+    <button class="btn-primary" style="font-size:.8rem;padding:.45rem 1.2rem" onclick="openPasteModal()">＋ 导入文本</button>
   </div>
   <div class="stats-grid" id="stats-grid"></div>
   <div class="section-title">最高频符号</div>
@@ -641,7 +641,7 @@
 
   <!-- 筛选栏 -->
   <div class="filter-bar">
-    <input type="text" id="sym-search" placeholder="筛选符号…" oninput="renderSymbols()">
+    <input type="text" id="sym-search" placeholder="筛选符号…" oninput="debouncedRenderSymbols()">
     <select id="sym-year" onchange="renderSymbols()"><option value="">全部年份</option></select>
     <select id="sym-month" onchange="renderSymbols()"><option value="">全部月份</option></select>
     <button class="filter-chip" data-season="" onclick="setSeason(this)">全年</button>
@@ -689,6 +689,17 @@
     <div style="margin-left:auto;display:flex;gap:.6rem;align-items:center">
       <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .9rem" onclick="addCurrentSymbolToGroup()">加入符号组</button>
     </div>
+  </div>
+  <!-- 详情页筛选栏 -->
+  <div id="detail-filter-bar" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1.4rem;padding:.65rem .9rem;background:var(--bg2);border:1px solid var(--border);border-radius:7px;font-size:.8rem">
+    <span style="color:var(--text-dim);letter-spacing:.05em">筛选：</span>
+    <select id="detail-year" onchange="refreshDetailView()" style="background:transparent;border:none;color:var(--text);font-family:'Noto Serif SC',serif;font-size:.8rem;outline:none;cursor:pointer"><option value="">全部年份</option></select>
+    <select id="detail-month" onchange="refreshDetailView()" style="background:transparent;border:none;color:var(--text);font-family:'Noto Serif SC',serif;font-size:.8rem;outline:none;cursor:pointer"><option value="">全部月份</option></select>
+    <button class="filter-chip" data-dseason="" onclick="setDetailSeason(this)" style="font-size:.76rem;padding:.28rem .65rem">全年</button>
+    <button class="filter-chip" data-dseason="spring" onclick="setDetailSeason(this)" style="font-size:.76rem;padding:.28rem .65rem">春</button>
+    <button class="filter-chip" data-dseason="summer" onclick="setDetailSeason(this)" style="font-size:.76rem;padding:.28rem .65rem">夏</button>
+    <button class="filter-chip" data-dseason="autumn" onclick="setDetailSeason(this)" style="font-size:.76rem;padding:.28rem .65rem">秋</button>
+    <button class="filter-chip" data-dseason="winter" onclick="setDetailSeason(this)" style="font-size:.76rem;padding:.28rem .65rem">冬</button>
   </div>
   <div id="detail-dates"></div>
 </div>
@@ -815,6 +826,16 @@ let currentSeason = '';
 let currentFilter = 'all'; // 'all' | 'starred' | 'groups'
 let editMode = false;
 let selectedWords = new Set();
+// Filters carried into symbol/group detail view
+let detailFilterYear = '';
+let detailFilterMonth = '';
+let detailFilterSeason = '';
+// Debounce
+let _searchTimer = null;
+function debouncedRenderSymbols() {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(renderSymbols, 180);
+}
 
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
@@ -1418,16 +1439,25 @@ function deleteCurrentGroup() {
 function openGroup(groupId) {
   const g = DB.groups[groupId];
   if (!g) return;
+
+  // Sync filters from symbols page when entering fresh
+  if (navHistory[navHistory.length - 1] !== 'group-detail') {
+    detailFilterYear  = document.getElementById('sym-year').value;
+    detailFilterMonth = document.getElementById('sym-month').value;
+    detailFilterSeason = currentSeason;
+  }
+
   document.getElementById('group-detail-name').textContent = g.name;
   const isStarred = (DB.starred || []).includes(g.id);
   document.getElementById('group-detail-star').textContent = isStarred ? '★' : '☆';
   document.getElementById('group-detail-star').classList.toggle('starred', isStarred);
   document.getElementById('group-detail-star').onclick = function() { toggleStar(g.id); openGroup(groupId); };
 
+  const validDates = getDetailValidDates();
   const memberHtml = g.words.map(w => {
     const s = DB.symbols[w];
     if (!s) return '';
-    const ex = getExclusiveStats(w, null);
+    const ex = getExclusiveStats(w, validDates);
     return `<div class="symbol-card" style="cursor:pointer">
       <span class="symbol-word" onclick="openSymbol('${esc(w)}')">${esc(w)}</span>
       <span style="display:flex;align-items:center;gap:.6rem">
@@ -1437,10 +1467,17 @@ function openGroup(groupId) {
     </div>`;
   }).join('');
 
-  document.getElementById('group-detail-members').innerHTML = memberHtml ||
-    '<div class="empty-state" style="padding:2rem">组内暂无符号</div>';
+  // Filter label if active
+  const filterLabel = (detailFilterYear || detailFilterMonth || detailFilterSeason)
+    ? `<div style="font-size:.76rem;color:var(--text-dim);letter-spacing:.04em;margin-bottom:1rem">
+        筛选中：${detailFilterYear ? detailFilterYear+'年 ' : ''}${detailFilterMonth ? detailFilterMonth+'月 ' : ''}${detailFilterSeason ? {spring:'春',summer:'夏',autumn:'秋',winter:'冬'}[detailFilterSeason] : ''}
+        <span style="cursor:pointer;color:var(--moon);margin-left:.5rem" onclick="clearDetailFilter();openGroup('${esc(groupId)}')">✕ 清除</span>
+      </div>`
+    : '';
+
+  document.getElementById('group-detail-members').innerHTML = filterLabel + (memberHtml ||
+    '<div class="empty-state" style="padding:2rem">组内暂无符号</div>');
   document.getElementById('group-detail-edit').onclick = function() {
-    // Open picker to add more symbols to this group
     openGroupPicker([], groupId);
   };
 
@@ -1495,12 +1532,69 @@ function getContextSnippet(date, word) {
   return snippets.join('<br><br>');
 }
 
-function openSymbol(word) {
-  const s = DB.symbols[word];
-  if (!s) return;
-  const ex = getExclusiveStats(word, null);
-  document.getElementById('detail-word').textContent = word;
+function populateDetailFilters() {
+  const years = [...new Set(Object.values(DB.entries).map(e => e.year))].sort((a,b) => b-a);
+  document.getElementById('detail-year').innerHTML = '<option value="">全部年份</option>' +
+    years.map(y => `<option value="${y}"${detailFilterYear==y?' selected':''}>${y}</option>`).join('');
+  const months = [...new Set(Object.values(DB.entries).map(e => e.month))].sort((a,b) => a-b);
+  document.getElementById('detail-month').innerHTML = '<option value="">全部月份</option>' +
+    months.map(m => `<option value="${m}"${detailFilterMonth==m?' selected':''}>${m}月</option>`).join('');
+  document.querySelectorAll('#detail-filter-bar .filter-chip[data-dseason]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.dseason === detailFilterSeason);
+  });
+}
+
+function setDetailSeason(el) {
+  detailFilterSeason = el.dataset.dseason;
+  document.querySelectorAll('#detail-filter-bar .filter-chip[data-dseason]').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const word = document.getElementById('detail-word').textContent;
+  if (word) renderDetailDates(word);
+}
+
+function refreshDetailView() {
+  detailFilterYear = document.getElementById('detail-year').value;
+  detailFilterMonth = document.getElementById('detail-month').value;
+  const word = document.getElementById('detail-word').textContent;
+  if (word) renderDetailDates(word);
+}
+
+function clearDetailFilter() {
+  detailFilterYear = ''; detailFilterMonth = ''; detailFilterSeason = '';
+}
+
+function getDetailValidDates() {
+  return new Set(Object.values(DB.entries).filter(e => {
+    if (detailFilterYear && e.year != detailFilterYear) return false;
+    if (detailFilterMonth && e.month != detailFilterMonth) return false;
+    if (detailFilterSeason && e.season !== detailFilterSeason) return false;
+    return true;
+  }).map(e => e.date));
+}
+
+function renderDetailDates(word) {
+  const validDates = getDetailValidDates();
+  const excl = (DB.excluded || {})[word] || [];
+  const ex = getExclusiveStats(word, validDates);
   document.getElementById('detail-freq').textContent = `${ex.days} 天 · ${ex.freq} 次`;
+
+  // All dates where word appears (pre-exclusion), filtered by validDates
+  const allDates = Object.values(DB.entries)
+    .filter(e => {
+      if (validDates && !validDates.has(e.date)) return false;
+      return countExclusive(word, e.content) > 0;
+    })
+    .map(e => e.date)
+    .sort((a,b) => b.localeCompare(a));
+
+  const SEASON_ZH = { spring:'春', summer:'夏', autumn:'秋', winter:'冬' };
+  const monthGroups = {};
+  for (const d of allDates) {
+    const [y, mo] = d.split('.');
+    const key = `${y}.${mo}`;
+    if (!monthGroups[key]) monthGroups[key] = [];
+    monthGroups[key].push(d);
+  }
 
   // Group membership badge
   const group = getWordGroup(word);
@@ -1511,31 +1605,8 @@ function openSymbol(word) {
        </div>`
     : '';
 
-  // Back button label depends on where we came from
-  const fromGroup = navHistory[navHistory.length - 1] === 'group-detail';
-  document.querySelector('#page-symbol-detail .back-btn').textContent =
-    fromGroup ? '← 返回符号组' : '← 返回符号志';
-  document.querySelector('#page-symbol-detail .back-btn').onclick =
-    fromGroup ? function() { history.go(-1); } : function() { showPage('symbols'); };
-
-  // All dates where the word appears (before manual exclusion), for toggle display
-  const excl = (DB.excluded || {})[word] || [];
-  const allDatesWithWord = Object.values(DB.entries)
-    .filter(e => countExclusive(word, e.content) > 0)
-    .map(e => e.date)
-    .sort((a, b) => b.localeCompare(a));
-
-  const SEASON_ZH = { spring: '春', summer: '夏', autumn: '秋', winter: '冬' };
-  const monthGroups = {};
-  for (const d of allDatesWithWord) {
-    const [y, mo] = d.split('.');
-    const key = `${y}.${mo}`;
-    if (!monthGroups[key]) monthGroups[key] = [];
-    monthGroups[key].push(d);
-  }
-
   let html = groupBadge;
-  for (const [ym, dates] of Object.entries(monthGroups).sort((a, b) => b[0].localeCompare(a[0]))) {
+  for (const [ym, dates] of Object.entries(monthGroups).sort((a,b) => b[0].localeCompare(a[0]))) {
     const [y, mo] = ym.split('.');
     const season = SEASON_ZH[getSeason(parseInt(mo))];
     html += `<div class="month-section">
@@ -1555,7 +1626,33 @@ function openSymbol(word) {
       </div>
     </div>`;
   }
-  document.getElementById('detail-dates').innerHTML = html || '<div class="empty-state">互斥过滤后无有效出现</div>';
+  document.getElementById('detail-dates').innerHTML = html ||
+    '<div class="empty-state">当前筛选条件下无出现记录</div>';
+}
+
+function openSymbol(word) {
+  const s = DB.symbols[word];
+  if (!s) return;
+
+  // Sync filters from symbols page when entering fresh (not from toggleExcludeDate)
+  const comingFromSymbols = navHistory[navHistory.length - 1] !== 'symbol-detail';
+  if (comingFromSymbols) {
+    detailFilterYear  = document.getElementById('sym-year').value;
+    detailFilterMonth = document.getElementById('sym-month').value;
+    detailFilterSeason = currentSeason;
+  }
+
+  document.getElementById('detail-word').textContent = word;
+  populateDetailFilters();
+
+  // Back button
+  const fromGroup = navHistory[navHistory.length - 1] === 'group-detail';
+  document.querySelector('#page-symbol-detail .back-btn').textContent =
+    fromGroup ? '← 返回符号组' : '← 返回符号志';
+  document.querySelector('#page-symbol-detail .back-btn').onclick =
+    fromGroup ? function() { history.go(-1); } : function() { showPage('symbols'); };
+
+  renderDetailDates(word);
   showPage('symbol-detail');
 }
 
@@ -1570,10 +1667,10 @@ function toggleExcludeDate(word, date) {
     if (DB.excluded[word].length === 0) delete DB.excluded[word];
   }
   save();
-  // Refresh detail page stats and chips without full navigation
-  const ex = getExclusiveStats(word, null);
-  document.getElementById('detail-freq').textContent = `${ex.days} 天 · ${ex.freq} 次`;
-  openSymbol(word); // re-render chips with updated exclusion state
+  // Re-render only the dates area — no page navigation, no scroll jump
+  const scrollY = window.scrollY;
+  renderDetailDates(word);
+  window.scrollTo(0, scrollY);
 }
 
 function addCurrentSymbolToGroup() {
