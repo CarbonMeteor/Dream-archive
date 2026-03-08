@@ -488,6 +488,14 @@
     opacity: 1; background: rgba(200,120,120,0.08);
   }
 
+  /* ─── TAGS ─── */
+  .tag-card { border-color: rgba(168,200,160,0.25); }
+  .tag-card:hover { border-color: rgba(168,200,160,0.5); background: var(--bg3); }
+  .filter-mode-chip[data-filter^="tag:"].active {
+    border-color: rgba(168,200,160,0.5);
+    background: rgba(168,200,160,0.1); color: #a8c8a0;
+  }
+
   /* ─── GROUP-EXCLUDED MEMBER ─── */
   .gexcl-card { opacity: .7; border-style: dashed; }
 
@@ -668,16 +676,19 @@
     <button id="edit-mode-btn" class="filter-chip" onclick="toggleEditMode()">编辑</button>
   </div>
   <!-- 过滤模式 -->
-  <div style="display:flex;gap:.5rem;margin-bottom:1.2rem;flex-wrap:wrap;align-items:center">
+  <div style="display:flex;gap:.5rem;margin-bottom:.6rem;flex-wrap:wrap;align-items:center">
     <button class="filter-mode-chip active" data-filter="all" onclick="setFilter(this)">全部</button>
     <button class="filter-mode-chip" data-filter="starred" onclick="setFilter(this)">★ 星标</button>
     <button class="filter-mode-chip" data-filter="groups" onclick="setFilter(this)">符号组</button>
+    <div id="tag-filter-chips" style="display:contents"></div>
+    <button class="filter-mode-chip" style="border-style:dashed;opacity:.7" onclick="promptCreateTag()">＋ 新建标签</button>
   </div>
   <!-- 编辑模式操作栏 -->
   <div id="edit-action-bar" class="edit-action-bar">
     <span id="selected-count"></span>
     <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem" onclick="batchBlock()">批量屏蔽</button>
     <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem" onclick="addSelectedToGroup()">加入/创建符号组</button>
+    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem" onclick="addSelectedToTag()">加入标签</button>
   </div>
 
   <div id="symbols-grid" class="symbols-grid"></div>
@@ -803,36 +814,70 @@
 
 <!-- ── EXPORT REPORT MODAL ─────────────────────── -->
 <div class="modal-overlay" id="export-modal">
-  <div class="modal" style="max-width:440px">
-    <h2>导出符号报告</h2>
-    <p class="modal-meta">以当前筛选条件为基础，选择导出范围和数量限制。</p>
-    <div style="display:flex;flex-direction:column;gap:.9rem;margin:.5rem 0 1.2rem">
-      <label style="font-size:.82rem;color:var(--text-dim);letter-spacing:.05em">包含内容</label>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-        <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer">
-          <input type="checkbox" id="exp-symbols" checked> 符号
-        </label>
-        <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer">
-          <input type="checkbox" id="exp-groups" checked> 符号组
-        </label>
-        <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer">
-          <input type="checkbox" id="exp-starred-only"> 仅星标
-        </label>
+  <div class="modal" style="max-width:400px">
+    <h2>导出符号报告 · TXT</h2>
+    <p class="modal-meta">忽略当前筛选，以选定维度对所有符号分类导出。</p>
+    <div style="display:flex;flex-direction:column;gap:1rem;margin:.5rem 0 1.2rem">
+      <div>
+        <div style="font-size:.8rem;color:var(--text-dim);letter-spacing:.05em;margin-bottom:.5rem">时间分类维度</div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="filter-mode-chip active" data-dim="season" onclick="setExpDim(this)">春夏秋冬</button>
+          <button class="filter-mode-chip" data-dim="year" onclick="setExpDim(this)">年份</button>
+          <button class="filter-mode-chip" data-dim="month" onclick="setExpDim(this)">月份</button>
+          <button class="filter-mode-chip" data-dim="none" onclick="setExpDim(this)">不分类</button>
+        </div>
       </div>
-      <label style="font-size:.82rem;color:var(--text-dim);letter-spacing:.05em">数量限制（0 = 全部）</label>
-      <input type="number" id="exp-limit" value="0" min="0"
-        style="width:100px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:.45rem .7rem;color:var(--text);font-family:'Noto Serif SC',serif;font-size:.88rem;outline:none">
-      <p style="font-size:.76rem;color:var(--text-dim);margin:0">常用：前 5 / 10 / 20 个；0 = 全部导出</p>
+      <div>
+        <div style="font-size:.8rem;color:var(--text-dim);letter-spacing:.05em;margin-bottom:.5rem">包含内容</div>
+        <div style="display:flex;gap:.8rem;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer"><input type="checkbox" id="exp-symbols" checked> 符号</label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer"><input type="checkbox" id="exp-groups" checked> 符号组</label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer"><input type="checkbox" id="exp-starred-only"> 仅星标</label>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:.8rem;color:var(--text-dim);letter-spacing:.05em;margin-bottom:.5rem">数量上限（0 = 全部）</div>
+        <input type="number" id="exp-limit" value="0" min="0"
+          style="width:90px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:.4rem .7rem;color:var(--text);font-family:'Noto Serif SC',serif;font-size:.88rem;outline:none">
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeExportModal()">取消</button>
-      <button class="btn-primary" onclick="doExportReport()">生成并下载</button>
+      <button class="btn-primary" onclick="doExportReport()">下载 TXT</button>
     </div>
   </div>
 </div>
 
+<!-- ── TAG DETAIL ─────────────────────────────── -->
+<div id="page-tag-detail" class="page">
+  <button class="back-btn" onclick="showPage('symbols')">← 返回符号志</button>
+  <div class="detail-header" style="align-items:center;gap:1rem">
+    <div class="detail-word" id="tag-detail-name" style="color:#a8c8a0"></div>
+    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem;margin-left:auto" onclick="addToCurrentTag()">添加符号/符号组</button>
+    <button onclick="deleteCurrentTag()" class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem;color:var(--red)">删除标签</button>
+  </div>
+  <div class="section-title" style="margin-top:1.2rem">标签内容</div>
+  <div id="tag-detail-members" class="symbols-grid"></div>
+</div>
+
 <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
 <div class="toast" id="toast"></div>
+
+<!-- ── TAG PICKER MODAL ──────────────────────────── -->
+<div class="modal-overlay" id="tag-picker-modal">
+  <div class="modal" style="max-width:440px">
+    <h2 id="tag-picker-title">加入标签</h2>
+    <div style="font-size:.78rem;color:var(--text-dim);margin-bottom:.8rem">选择要加入的条目（可多选）</div>
+    <input type="text" id="tag-picker-search" placeholder="搜索…"
+      style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:.45rem .8rem;color:var(--text);font-family:'Noto Serif SC',serif;font-size:.84rem;outline:none;margin-bottom:.8rem"
+      oninput="renderTagPickerList()">
+    <div id="tag-picker-list" style="display:flex;flex-direction:column;gap:.4rem;max-height:280px;overflow-y:auto"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeTagPicker()">取消</button>
+      <button class="btn-primary" onclick="confirmTagPicker()">确认添加</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── GROUP PICKER MODAL ────────────────────────── -->
 <div class="modal-overlay" id="group-picker-modal">
@@ -858,7 +903,7 @@
 // DATA
 // ══════════════════════════════════════════════════════
 const STORAGE_KEY = 'dreamarchive_v2';
-let DB = { entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {}, groupExcluded: {} };
+let DB = { entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {}, groupExcluded: {}, tags: {} };
 let navHistory = [];
 let currentSymbolSort = 'freq';
 let currentSeason = '';
@@ -883,7 +928,7 @@ function load() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (raw) {
     const parsed = JSON.parse(raw);
-    DB = Object.assign({ entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {}, groupExcluded: {} }, parsed);
+    DB = Object.assign({ entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {}, groupExcluded: {}, tags: {} }, parsed);
   }
 }
 
@@ -1166,6 +1211,14 @@ function setFilter(el) {
   renderSymbols();
 }
 
+function renderTagChips() {
+  const container = document.getElementById('tag-filter-chips');
+  container.innerHTML = Object.values(DB.tags).map(t =>
+    `<button class="filter-mode-chip${currentFilter === 'tag:' + t.id ? ' active' : ''}"
+      data-filter="tag:${t.id}" onclick="setFilter(this)">${t.name}</button>`
+  ).join('');
+}
+
 function toggleEditMode() {
   editMode = !editMode;
   selectedWords.clear();
@@ -1250,7 +1303,29 @@ function renderSymbols() {
     symItems = symItems.filter(s => starred.includes(s.word));
   } else if (currentFilter === 'groups') {
     symItems = [];
+  } else if (currentFilter.startsWith('tag:')) {
+    const tagId = currentFilter.slice(4);
+    const tag = (DB.tags || {})[tagId];
+    if (tag) {
+      const tagItems = new Set(tag.items || []);
+      const tagBlocked = new Set(tag.blocked || []);
+      // Also include words from tagged groups
+      const groupWordSet = new Set();
+      for (const g of Object.values(DB.groups)) {
+        if (tagItems.has(g.id)) {
+          for (const w of g.words) groupWordSet.add(w);
+        }
+      }
+      groupItems = groupItems.filter(g => tagItems.has(g.id) && !tagBlocked.has(g.id));
+      symItems = symItems.filter(s => {
+        if (tagBlocked.has(s.word)) return false;
+        return tagItems.has(s.word) || groupWordSet.has(s.word);
+      });
+    }
   }
+
+  // Render tag chips in filter bar
+  renderTagChips();
 
   // Sort
   const sortFn = (a, b) => {
@@ -1993,7 +2068,7 @@ function rebuildAndRefresh() {
 
 function clearAllData() {
   if (!confirm('确定要清除所有本地数据吗？此操作无法撤销。\n建议先导出备份。')) return;
-  DB = { entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {}, groupExcluded: {} };
+  DB = { entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {}, groupExcluded: {}, tags: {} };
   localStorage.removeItem(STORAGE_KEY);
   showPage('landing', false);
   navHistory = [];
@@ -2080,6 +2155,7 @@ function handleImport(e) {
       if (data.groups) DB.groups = Object.assign({}, DB.groups, data.groups);
       if (data.excluded) DB.excluded = Object.assign({}, DB.excluded, data.excluded);
       if (data.groupExcluded) DB.groupExcluded = Object.assign({}, DB.groupExcluded, data.groupExcluded);
+      if (data.tags) DB.tags = Object.assign({}, DB.tags, data.tags);
       rebuildSymbols();
       save();
       populateFilters(); renderDashboard(); renderTimeline();
@@ -2119,6 +2195,216 @@ function esc(s) {
 // INIT
 // ══════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════
+// TAGS
+// ══════════════════════════════════════════════════════
+let _currentTagId = null;
+let _tagPickerSelectedKeys = new Set();
+
+function newTagId() {
+  return 't_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4);
+}
+
+function promptCreateTag() {
+  const name = prompt('新建标签名称：');
+  if (!name || !name.trim()) return;
+  const id = newTagId();
+  DB.tags[id] = { id, name: name.trim(), items: [], blocked: [] };
+  save(); renderSymbols(); toast(`标签「${name.trim()}」已创建`);
+}
+
+function addSelectedToTag() {
+  const keys = [...selectedWords]; // words and group ids
+  if (keys.length === 0) { toast('请先选择符号或符号组', true); return; }
+  const tags = Object.values(DB.tags);
+  if (tags.length === 0) {
+    const name = prompt('暂无标签，输入名称直接创建：');
+    if (!name || !name.trim()) return;
+    const id = newTagId();
+    DB.tags[id] = { id, name: name.trim(), items: [...keys], blocked: [] };
+    selectedWords.clear();
+    save(); renderSymbols(); toast(`标签「${name.trim()}」已创建`);
+    return;
+  }
+  // Show a simple picker (reuse group picker style)
+  const options = tags.map((t, i) => `${i + 1}. ${t.name}`).join('\n');
+  const input = prompt(`选择要加入的标签（输入编号）：\n${options}\n\n输入 0 新建标签`);
+  if (!input) return;
+  const idx = parseInt(input);
+  if (idx === 0) {
+    const name = prompt('新建标签名称：');
+    if (!name || !name.trim()) return;
+    const id = newTagId();
+    DB.tags[id] = { id, name: name.trim(), items: [...keys], blocked: [] };
+    selectedWords.clear();
+    save(); renderSymbols(); toast(`标签「${name.trim()}」已创建`);
+    return;
+  }
+  if (isNaN(idx) || idx < 1 || idx > tags.length) { toast('编号无效', true); return; }
+  const tag = tags[idx - 1];
+  for (const k of keys) {
+    if (!tag.items.includes(k)) tag.items.push(k);
+  }
+  selectedWords.clear();
+  save(); renderSymbols(); toast(`已加入标签「${tag.name}」`);
+}
+
+function addToCurrentTag() {
+  if (!_currentTagId || !DB.tags[_currentTagId]) return;
+  openTagPicker(_currentTagId);
+}
+
+// Tag picker for adding items to a specific tag
+function openTagPicker(tagId) {
+  _currentTagId = tagId;
+  _tagPickerSelectedKeys.clear();
+  const tag = DB.tags[tagId];
+  document.getElementById('tag-picker-title').textContent = `添加到「${tag.name}」`;
+  document.getElementById('tag-picker-search').value = '';
+  renderTagPickerList();
+  document.getElementById('tag-picker-modal').classList.add('open');
+}
+
+function closeTagPicker() {
+  document.getElementById('tag-picker-modal').classList.remove('open');
+  _tagPickerSelectedKeys.clear();
+}
+
+function renderTagPickerList() {
+  const tag = DB.tags[_currentTagId];
+  if (!tag) return;
+  const search = document.getElementById('tag-picker-search').value.trim().toLowerCase();
+  const groups = Object.values(DB.groups).filter(g =>
+    !tag.items.includes(g.id) && (!search || g.name.toLowerCase().includes(search))
+  );
+  const syms = Object.values(DB.symbols).filter(s =>
+    !tag.items.includes(s.word) && !(DB.blocked||[]).includes(s.word) &&
+    (!search || s.word.includes(search))
+  ).sort((a,b) => b.freq - a.freq).slice(0, 60);
+
+  const groupHtml = groups.map(g => {
+    const sel = _tagPickerSelectedKeys.has(g.id);
+    return `<div class="symbol-card group-card${sel ? ' selected' : ''}" style="cursor:pointer;padding:.6rem 1rem"
+      onclick="tagPickerToggle('${esc(g.id)}',this)">
+      <span style="color:var(--gold)">${esc(g.name)}</span>
+      <span style="font-size:.76rem;color:var(--text-dim)">${sel ? '✓' : ''}</span>
+    </div>`;
+  }).join('');
+  const symHtml = syms.map(s => {
+    const sel = _tagPickerSelectedKeys.has(s.word);
+    return `<div class="symbol-card${sel ? ' selected' : ''}" style="cursor:pointer;padding:.5rem .9rem"
+      onclick="tagPickerToggle('${esc(s.word)}',this)">
+      <span>${esc(s.word)}</span>
+      <span style="font-size:.76rem;color:var(--text-dim)">${sel ? '✓' : s.freq+'×'}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('tag-picker-list').innerHTML = groupHtml + symHtml ||
+    '<div style="color:var(--text-dim);font-size:.82rem;padding:.4rem 0">没有可添加的条目</div>';
+}
+
+function tagPickerToggle(key, el) {
+  if (_tagPickerSelectedKeys.has(key)) {
+    _tagPickerSelectedKeys.delete(key);
+    el.classList.remove('selected');
+  } else {
+    _tagPickerSelectedKeys.add(key);
+    el.classList.add('selected');
+  }
+  const span = el.querySelector('span:last-child');
+  if (span) span.textContent = _tagPickerSelectedKeys.has(key) ? '✓' : '';
+}
+
+function confirmTagPicker() {
+  const tag = DB.tags[_currentTagId];
+  if (!tag) return;
+  let added = 0;
+  for (const k of _tagPickerSelectedKeys) {
+    if (!tag.items.includes(k)) { tag.items.push(k); added++; }
+  }
+  save(); closeTagPicker(); renderSymbols();
+  if (document.getElementById('page-tag-detail').classList.contains('active')) openTag(_currentTagId);
+  toast(added ? `已添加 ${added} 项到标签` : '所选条目已在标签内');
+}
+
+function openTag(tagId) {
+  const tag = DB.tags[tagId];
+  if (!tag) return;
+  _currentTagId = tagId;
+  document.getElementById('tag-detail-name').textContent = `# ${tag.name}`;
+
+  const validDates = getDetailValidDates();
+  const tagBlocked = new Set(tag.blocked || []);
+
+  const html = tag.items.map(key => {
+    const isBlocked = tagBlocked.has(key);
+    const g = DB.groups[key];
+    if (g) {
+      const stats = getGroupStats(g, validDates);
+      return `<div class="symbol-card group-card${isBlocked ? ' gexcl-card' : ''}" style="cursor:default">
+        <span class="symbol-word" onclick="openGroup('${esc(key)}')" style="cursor:pointer;color:var(--gold);${isBlocked ? 'opacity:.4;text-decoration:line-through' : ''}">${esc(g.name)}</span>
+        <span style="display:flex;align-items:center;gap:.55rem">
+          ${!isBlocked ? `<span class="symbol-count" style="font-size:.82rem">${stats.days}d · ${stats.freq}×</span>` : '<span style="font-size:.74rem;color:var(--text-dim)">已屏蔽</span>'}
+          <span class="excl-toggle-btn" style="opacity:1;font-size:.8rem" title="${isBlocked ? '恢复' : '在此标签内屏蔽'}"
+            onclick="toggleTagBlock('${esc(tagId)}','${esc(key)}')">${isBlocked ? '⊕' : '⊖'}</span>
+          <span style="font-size:.75rem;color:var(--text-dim);cursor:pointer" onclick="removeFromTag('${esc(tagId)}','${esc(key)}')" title="从标签移除">✕</span>
+        </span>
+      </div>`;
+    }
+    const s = DB.symbols[key];
+    if (s) {
+      const ex = isBlocked ? null : getExclusiveStats(key, validDates);
+      return `<div class="symbol-card${isBlocked ? ' gexcl-card' : ''}" style="cursor:default">
+        <span class="symbol-word" onclick="openSymbol('${esc(key)}')" style="cursor:pointer;${isBlocked ? 'opacity:.4;text-decoration:line-through' : ''}">${esc(key)}</span>
+        <span style="display:flex;align-items:center;gap:.55rem">
+          ${!isBlocked ? `<span class="symbol-count" style="font-size:.82rem">${ex.days}d · ${ex.freq}×</span>` : '<span style="font-size:.74rem;color:var(--text-dim)">已屏蔽</span>'}
+          <span class="excl-toggle-btn" style="opacity:1;font-size:.8rem" title="${isBlocked ? '恢复' : '在此标签内屏蔽'}"
+            onclick="toggleTagBlock('${esc(tagId)}','${esc(key)}')">${isBlocked ? '⊕' : '⊖'}</span>
+          <span style="font-size:.75rem;color:var(--text-dim);cursor:pointer" onclick="removeFromTag('${esc(tagId)}','${esc(key)}')" title="从标签移除">✕</span>
+        </span>
+      </div>`;
+    }
+    return '';
+  }).filter(Boolean).join('') || '<div class="empty-state" style="padding:2rem">标签内暂无内容</div>';
+
+  document.getElementById('tag-detail-members').innerHTML = html;
+  showPage('tag-detail');
+}
+
+function toggleTagBlock(tagId, key) {
+  const tag = DB.tags[tagId];
+  if (!tag) return;
+  if (!tag.blocked) tag.blocked = [];
+  const idx = tag.blocked.indexOf(key);
+  if (idx === -1) { tag.blocked.push(key); toast('已在此标签内屏蔽'); }
+  else { tag.blocked.splice(idx, 1); toast('已恢复'); }
+  const scrollY = window.scrollY;
+  save(); renderSymbols(); openTag(tagId);
+  window.scrollTo(0, scrollY);
+}
+
+function removeFromTag(tagId, key) {
+  const tag = DB.tags[tagId];
+  if (!tag) return;
+  tag.items = tag.items.filter(k => k !== key);
+  tag.blocked = (tag.blocked || []).filter(k => k !== key);
+  save(); renderSymbols();
+  if (tag.items.length === 0) {
+    showPage('symbols'); toast('标签已无内容');
+  } else {
+    openTag(tagId);
+  }
+}
+
+function deleteCurrentTag() {
+  if (!_currentTagId || !DB.tags[_currentTagId]) return;
+  const name = DB.tags[_currentTagId].name;
+  if (!confirm(`删除标签「${name}」？标签内的符号和符号组不受影响。`)) return;
+  delete DB.tags[_currentTagId];
+  if (currentFilter === 'tag:' + _currentTagId) currentFilter = 'all';
+  _currentTagId = null;
+  save(); renderSymbols(); showPage('symbols'); toast(`标签「${name}」已删除`);
+}
+
+// ══════════════════════════════════════════════════════
 // EXPORT REPORT
 // ══════════════════════════════════════════════════════
 function exportSymbolReport() {
@@ -2128,157 +2414,123 @@ function closeExportModal() {
   document.getElementById('export-modal').classList.remove('open');
 }
 
+let _expDim = 'season';
+
+function setExpDim(el) {
+  _expDim = el.dataset.dim;
+  document.querySelectorAll('#export-modal .filter-mode-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
 function doExportReport() {
   const inclSymbols = document.getElementById('exp-symbols').checked;
   const inclGroups  = document.getElementById('exp-groups').checked;
   const starredOnly = document.getElementById('exp-starred-only').checked;
   const limit       = parseInt(document.getElementById('exp-limit').value) || 0;
+  const dim         = _expDim; // 'season' | 'year' | 'month' | 'none'
+  const starred     = DB.starred || [];
 
-  // Current filter state
-  const filterYear   = document.getElementById('sym-year').value;
-  const filterMonth  = document.getElementById('sym-month').value;
-  const filterSeason = currentSeason;
-  const starred      = DB.starred || [];
+  const SEASON_ZH   = { spring:'春', summer:'夏', autumn:'秋', winter:'冬' };
+  const SEASON_KEYS = ['spring','summer','autumn','winter'];
+  const MONTH_NAMES = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
 
-  const validDates = (filterYear || filterMonth || filterSeason)
-    ? new Set(Object.values(DB.entries).filter(e => {
-        if (filterYear  && e.year  != filterYear)       return false;
-        if (filterMonth && e.month != filterMonth)      return false;
-        if (filterSeason && e.season !== filterSeason)  return false;
-        return true;
-      }).map(e => e.date))
-    : null;
+  // Collect all valid ungrouped symbols and groups (ignore current filter, use all data)
+  const groupedWords = new Set();
+  for (const g of Object.values(DB.groups)) for (const w of g.words) groupedWords.add(w);
 
-  // Build items
-  let items = [];
+  function buildItems(validDates) {
+    let items = [];
+    if (inclGroups) {
+      for (const g of Object.values(DB.groups)) {
+        if (starredOnly && !starred.includes(g.id)) continue;
+        const stats = getGroupStats(g, validDates);
+        if (stats.days === 0) continue;
+        items.push({ type:'group', label:g.name, days:stats.days, freq:stats.freq,
+          members: g.words.map(w => {
+            const ge = (DB.groupExcluded||{})[g.id]||[];
+            const ex = getExclusiveStats(w, validDates);
+            return { word:w, days:ex.days, freq:ex.freq, excl:ge.includes(w) };
+          }).filter(m => m.days>0||m.excl)
+        });
+      }
+    }
+    if (inclSymbols) {
+      for (const s of Object.values(DB.symbols)) {
+        if ((DB.blocked||[]).includes(s.word)) continue;
+        if (groupedWords.has(s.word)) continue;
+        if (starredOnly && !starred.includes(s.word)) continue;
+        const ex = getExclusiveStats(s.word, validDates);
+        if (ex.days === 0) continue;
+        items.push({ type:'symbol', label:s.word, days:ex.days, freq:ex.freq });
+      }
+    }
+    items.sort((a,b) => b.days-a.days || b.freq-a.freq);
+    if (limit > 0) items = items.slice(0, limit);
+    return items;
+  }
 
-  if (inclGroups) {
-    for (const g of Object.values(DB.groups)) {
-      if (starredOnly && !starred.includes(g.id)) continue;
-      const stats = getGroupStats(g, validDates);
-      if (stats.days === 0) continue;
-      const memberStats = g.words.map(w => {
-        const ge = (DB.groupExcluded || {})[g.id] || [];
-        const ex = getExclusiveStats(w, validDates);
-        return { word: w, days: ex.days, freq: ex.freq, excluded: ge.includes(w) };
-      }).filter(m => m.days > 0 || m.excluded);
-      items.push({ type: 'group', name: g.name, days: stats.days, freq: stats.freq,
-        id: g.id, members: memberStats });
+  function itemsToText(items, indent) {
+    return items.map(item => {
+      if (item.type === 'group') {
+        const memberLines = item.members.map(m =>
+          `${indent}  ${m.excl ? '[不计入组] ' : ''}${m.word}${m.excl ? '' : ('  ' + m.days+'d · '+m.freq+'×')}`
+        ).join('\n');
+        return `${indent}⬡ ${item.label}  ${item.days}d · ${item.freq}×\n${memberLines}`;
+      }
+      return `${indent}${item.label}  ${item.days}d · ${item.freq}×`;
+    }).join('\n');
+  }
+
+  const dateStr = new Date().toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric'});
+  const limitLabel = limit > 0 ? `前${limit}项` : '全部';
+  let lines = [];
+  lines.push('梦境志 · 符号报告');
+  lines.push(`生成于 ${dateStr}  |  ${limitLabel}`);
+  lines.push('═'.repeat(40));
+  lines.push('');
+
+  if (dim === 'none') {
+    const items = buildItems(null);
+    lines.push(itemsToText(items, ''));
+  } else if (dim === 'season') {
+    for (const sk of SEASON_KEYS) {
+      const vd = new Set(Object.values(DB.entries).filter(e=>e.season===sk).map(e=>e.date));
+      const items = buildItems(vd);
+      lines.push(`── ${SEASON_ZH[sk]} ──`);
+      lines.push(items.length ? itemsToText(items,'  ') : '  （无记录）');
+      lines.push('');
+    }
+  } else if (dim === 'year') {
+    const years = [...new Set(Object.values(DB.entries).map(e=>e.year))].sort((a,b)=>a-b);
+    for (const y of years) {
+      const vd = new Set(Object.values(DB.entries).filter(e=>e.year===y).map(e=>e.date));
+      const items = buildItems(vd);
+      lines.push(`── ${y} 年 ──`);
+      lines.push(items.length ? itemsToText(items,'  ') : '  （无记录）');
+      lines.push('');
+    }
+  } else if (dim === 'month') {
+    for (let m=1; m<=12; m++) {
+      const vd = new Set(Object.values(DB.entries).filter(e=>e.month===m).map(e=>e.date));
+      if (vd.size === 0) continue;
+      const items = buildItems(vd);
+      lines.push(`── ${MONTH_NAMES[m-1]} ──`);
+      lines.push(items.length ? itemsToText(items,'  ') : '  （无记录）');
+      lines.push('');
     }
   }
 
-  if (inclSymbols) {
-    const groupedWords = new Set();
-    for (const g of Object.values(DB.groups)) {
-      for (const w of g.words) groupedWords.add(w);
-    }
-    for (const s of Object.values(DB.symbols)) {
-      if (DB.blocked.includes(s.word)) continue;
-      if (groupedWords.has(s.word)) continue; // hide grouped symbols (same as main view)
-      if (starredOnly && !starred.includes(s.word)) continue;
-      const ex = getExclusiveStats(s.word, validDates);
-      if (ex.days === 0) continue;
-      items.push({ type: 'symbol', word: s.word, days: ex.days, freq: ex.freq });
-    }
-  }
-
-  // Sort by days desc, freq desc
-  items.sort((a, b) => b.days - a.days || b.freq - a.freq);
-  if (limit > 0) items = items.slice(0, limit);
-
-  // Build human-readable label for filter state
-  const SEASON_ZH = { spring: '春', summer: '夏', autumn: '秋', winter: '冬' };
-  const filterLabel = [
-    filterYear  ? filterYear  + ' 年' : '',
-    filterMonth ? filterMonth + ' 月' : '',
-    filterSeason ? SEASON_ZH[filterSeason] + '季' : '',
-  ].filter(Boolean).join(' · ') || '全部时段';
-  const limitLabel  = limit > 0 ? `前 ${limit} 项` : '全部';
-  const contentLabel = [inclGroups ? '符号组' : '', inclSymbols ? '符号' : ''].filter(Boolean).join(' + ');
-
-  // Generate HTML report
-  const dateStr = new Date().toLocaleDateString('zh-CN', { year:'numeric', month:'long', day:'numeric' });
-  const rows = items.map(item => {
-    if (item.type === 'group') {
-      const memberRows = item.members.map(m =>
-        `<tr class="member-row${m.excluded ? ' excl' : ''}">
-          <td class="member-name">${esc(m.word)}${m.excluded ? ' <span class="excl-tag">不计入组</span>' : ''}</td>
-          <td>${m.excluded ? '—' : m.days + 'd'}</td>
-          <td>${m.excluded ? '—' : m.freq + '×'}</td>
-        </tr>`
-      ).join('');
-      return `<tr class="group-row">
-        <td class="item-name group-name">⬡ ${esc(item.name)}</td>
-        <td>${item.days}d</td>
-        <td>${item.freq}×</td>
-      </tr>${memberRows}`;
-    }
-    return `<tr>
-      <td class="item-name">${esc(item.word)}</td>
-      <td>${item.days}d</td>
-      <td>${item.freq}×</td>
-    </tr>`;
-  }).join('');
-
-  const html = `<!DOCTYPE html>
-<html lang="zh">
-<head>
-<meta charset="UTF-8">
-<title>梦境志 · 符号报告</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600&family=Cormorant+Garamond:ital,wght@0,300;1,300&display=swap');
-  :root { --moon: #b8c8e8; --gold: #c9b68a; --text: #d8d0c8; --bg: #0e0e12; --border: rgba(180,170,160,0.12); }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Noto Serif SC', serif;
-    padding: 3rem 2.5rem; max-width: 700px; margin: 0 auto; line-height: 1.7; }
-  @media print { body { max-width: 100%; padding: 1.5cm 2cm; background: #fff; color: #111; }
-    :root { --moon: #334; --gold: #665; --text: #222; --bg: #fff; --border: #ccc; } }
-  h1 { font-family: 'Cormorant Garamond', serif; font-size: 2rem; font-weight: 300;
-    letter-spacing: .2em; color: var(--moon); margin-bottom: .3rem; }
-  .subtitle { font-size: .78rem; color: var(--gold); letter-spacing: .12em; margin-bottom: 2.5rem; }
-  .meta { font-size: .76rem; opacity: .6; letter-spacing: .08em; margin-bottom: 2.5rem; border-top: 1px solid var(--border); padding-top: 1rem; }
-  table { width: 100%; border-collapse: collapse; }
-  th { text-align: left; font-size: .72rem; letter-spacing: .1em; color: var(--gold); opacity: .7;
-    padding: .4rem .6rem; border-bottom: 1px solid var(--border); }
-  td { padding: .55rem .6rem; border-bottom: 1px solid var(--border); font-size: .88rem; }
-  td:nth-child(2), td:nth-child(3) { text-align: right; opacity: .7; font-size: .8rem; white-space: nowrap; width: 60px; }
-  .item-name { font-size: .95rem; letter-spacing: .06em; }
-  .group-row td { background: rgba(201,182,138,0.06); }
-  .group-name { color: var(--gold); font-weight: 600; }
-  .member-row td { padding-left: 1.8rem; font-size: .84rem; opacity: .85; }
-  .member-row.excl td { opacity: .45; text-decoration: line-through; }
-  .excl-tag { font-size: .7rem; opacity: .7; text-decoration: none; display: inline-block; }
-  .print-btn { position: fixed; bottom: 1.5rem; right: 1.5rem; padding: .6rem 1.4rem;
-    background: var(--gold); color: #111; border: none; border-radius: 6px;
-    font-family: 'Noto Serif SC', serif; font-size: .82rem; cursor: pointer; }
-  @media print { .print-btn { display: none; } }
-</style>
-</head>
-<body>
-<h1>梦境志</h1>
-<div class="subtitle">符号报告 · Dream Symbol Report</div>
-<div class="meta">
-  时段筛选：${filterLabel} &nbsp;·&nbsp;
-  内容：${contentLabel} &nbsp;·&nbsp;
-  ${limitLabel} &nbsp;·&nbsp;
-  共 ${items.length} 项 &nbsp;·&nbsp;
-  生成于 ${dateStr}
-</div>
-<table>
-  <thead><tr><th>符号</th><th style="text-align:right">天数</th><th style="text-align:right">次数</th></tr></thead>
-  <tbody>${rows}</tbody>
-</table>
-<button class="print-btn" onclick="window.print()">打印 / 存为 PDF</button>
-</body></html>`;
-
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const txt = lines.join('\n');
+  const filename = `梦境志_${['不分类','春夏秋冬','年份','月份'][['none','season','year','month'].indexOf(dim)]}_${limitLabel}.txt`;
+  const blob = new Blob([txt], {type:'text/plain;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `梦境志符号报告_${filterLabel.replace(/ · /g,'_')}_${limitLabel}.html`;
+  a.download = filename;
   a.click();
   closeExportModal();
-  toast('报告已生成，用浏览器打开后可打印或存为 PDF');
+  toast('TXT 报告已下载');
 }
+
 
 load();
 
@@ -2302,6 +2554,9 @@ document.getElementById('group-picker-modal').addEventListener('click', function
 });
 document.getElementById('export-modal').addEventListener('click', function(e) {
   if (e.target === this) closeExportModal();
+});
+document.getElementById('tag-picker-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeTagPicker();
 });
 document.getElementById('edit-content-modal').addEventListener('click', function(e) {
   if (e.target === this) closeEditContentModal();
