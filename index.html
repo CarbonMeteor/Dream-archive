@@ -488,6 +488,9 @@
     opacity: 1; background: rgba(200,120,120,0.08);
   }
 
+  /* ─── GROUP-EXCLUDED MEMBER ─── */
+  .gexcl-card { opacity: .7; border-style: dashed; }
+
   /* ─── EXCLUDE DATE TOGGLE ─── */
   .excl-toggle-btn {
     font-size: .7rem; color: var(--text-dim);
@@ -641,7 +644,13 @@
 
   <!-- 筛选栏 -->
   <div class="filter-bar">
-    <input type="text" id="sym-search" placeholder="筛选符号…" oninput="debouncedRenderSymbols()">
+    <div style="display:flex;gap:.4rem;align-items:center">
+      <input type="text" id="sym-search" placeholder="筛选符号…"
+        onkeydown="if(event.key==='Enter')renderSymbols()"
+        style="min-width:140px">
+      <button class="filter-chip" onclick="renderSymbols()" style="padding:.35rem .7rem;font-size:.8rem">搜索</button>
+      <button class="filter-chip" onclick="document.getElementById('sym-search').value='';renderSymbols()" style="padding:.35rem .55rem;font-size:.8rem;opacity:.7" title="清空">✕</button>
+    </div>
     <select id="sym-year" onchange="renderSymbols()"><option value="">全部年份</option></select>
     <select id="sym-month" onchange="renderSymbols()"><option value="">全部月份</option></select>
     <button class="filter-chip" data-season="" onclick="setSeason(this)">全年</button>
@@ -819,7 +828,7 @@
 // DATA
 // ══════════════════════════════════════════════════════
 const STORAGE_KEY = 'dreamarchive_v2';
-let DB = { entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {} };
+let DB = { entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {}, groupExcluded: {} };
 let navHistory = [];
 let currentSymbolSort = 'freq';
 let currentSeason = '';
@@ -844,7 +853,7 @@ function load() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (raw) {
     const parsed = JSON.parse(raw);
-    DB = Object.assign({ entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {} }, parsed);
+    DB = Object.assign({ entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {}, groupExcluded: {} }, parsed);
   }
 }
 
@@ -1026,11 +1035,12 @@ function getWordGroup(word) {
 }
 
 function getGroupStats(group, validDates) {
-  // Merge exclusive stats for all member words
   const dateSet = new Set();
   let totalFreq = 0;
+  const ge = (DB.groupExcluded || {})[group.id] || [];
   for (const word of group.words) {
     if (DB.blocked.includes(word)) continue;
+    if (ge.includes(word)) continue; // excluded from this group's count
     const stats = getExclusiveStats(word, validDates);
     for (const d of stats.dates) dateSet.add(d);
     totalFreq += stats.freq;
@@ -1454,14 +1464,18 @@ function openGroup(groupId) {
   document.getElementById('group-detail-star').onclick = function() { toggleStar(g.id); openGroup(groupId); };
 
   const validDates = getDetailValidDates();
+  const ge = (DB.groupExcluded || {})[groupId] || [];
   const memberHtml = g.words.map(w => {
     const s = DB.symbols[w];
     if (!s) return '';
-    const ex = getExclusiveStats(w, validDates);
-    return `<div class="symbol-card" style="cursor:pointer">
-      <span class="symbol-word" onclick="openSymbol('${esc(w)}')">${esc(w)}</span>
-      <span style="display:flex;align-items:center;gap:.6rem">
-        <span class="symbol-count" style="font-size:.82rem">${ex.days}d · ${ex.freq}×</span>
+    const isGExcl = ge.includes(w);
+    const ex = isGExcl ? null : getExclusiveStats(w, validDates);
+    return `<div class="symbol-card${isGExcl ? ' gexcl-card' : ''}" style="cursor:default">
+      <span class="symbol-word" onclick="openSymbol('${esc(w)}')" style="cursor:pointer;${isGExcl ? 'opacity:.45;text-decoration:line-through' : ''}">${esc(w)}</span>
+      <span style="display:flex;align-items:center;gap:.55rem">
+        ${!isGExcl ? `<span class="symbol-count" style="font-size:.82rem">${ex.days}d · ${ex.freq}×</span>` : `<span style="font-size:.74rem;color:var(--text-dim);letter-spacing:.04em">不计入组</span>`}
+        <span class="excl-toggle-btn" style="opacity:1;font-size:.8rem" title="${isGExcl ? '重新计入此组' : '从此组计数排除'}"
+          onclick="toggleGroupExclude('${esc(groupId)}','${esc(w)}')">${isGExcl ? '⊕' : '⊖'}</span>
         <span style="font-size:.75rem;color:var(--text-dim);cursor:pointer" onclick="removeMemberFromGroup('${esc(groupId)}','${esc(w)}')" title="从组内移除">✕</span>
       </span>
     </div>`;
@@ -1490,12 +1504,33 @@ function removeMemberFromGroup(groupId, word) {
   const idx = g.words.indexOf(word);
   if (idx === -1) return;
   g.words.splice(idx, 1);
+  // Also clean up groupExcluded entry for this word
+  if (DB.groupExcluded && DB.groupExcluded[groupId]) {
+    DB.groupExcluded[groupId] = DB.groupExcluded[groupId].filter(w => w !== word);
+  }
   if (g.words.length === 0) {
     delete DB.groups[groupId];
+    delete DB.groupExcluded[groupId];
     save(); renderSymbols(); showPage('symbols'); toast('符号组已无成员，已自动解散');
     return;
   }
   save(); openGroup(groupId); toast(`「${word}」已从组内移除`);
+}
+
+function toggleGroupExclude(groupId, word) {
+  if (!DB.groupExcluded) DB.groupExcluded = {};
+  if (!DB.groupExcluded[groupId]) DB.groupExcluded[groupId] = [];
+  const arr = DB.groupExcluded[groupId];
+  const idx = arr.indexOf(word);
+  if (idx === -1) {
+    arr.push(word);
+    toast(`「${word}」已从组内计数排除，在符号志中正常显示`);
+  } else {
+    arr.splice(idx, 1);
+    if (arr.length === 0) delete DB.groupExcluded[groupId];
+    toast(`「${word}」已重新计入符号组`);
+  }
+  save(); renderSymbols(); openGroup(groupId);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1888,7 +1923,7 @@ function rebuildAndRefresh() {
 
 function clearAllData() {
   if (!confirm('确定要清除所有本地数据吗？此操作无法撤销。\n建议先导出备份。')) return;
-  DB = { entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {} };
+  DB = { entries: {}, symbols: {}, blocked: [], starred: [], groups: {}, excluded: {}, groupExcluded: {} };
   localStorage.removeItem(STORAGE_KEY);
   showPage('landing', false);
   navHistory = [];
@@ -1974,6 +2009,7 @@ function handleImport(e) {
       if (data.starred) DB.starred = [...new Set([...(DB.starred || []), ...data.starred])];
       if (data.groups) DB.groups = Object.assign({}, DB.groups, data.groups);
       if (data.excluded) DB.excluded = Object.assign({}, DB.excluded, data.excluded);
+      if (data.groupExcluded) DB.groupExcluded = Object.assign({}, DB.groupExcluded, data.groupExcluded);
       rebuildSymbols();
       save();
       populateFilters(); renderDashboard(); renderTimeline();
