@@ -630,6 +630,7 @@
   <div class="dash-header">
     <h1>符号志</h1>
     <span class="dash-date" id="sym-count-label"></span>
+    <button class="btn-secondary" style="font-size:.8rem;padding:.45rem 1rem;margin-left:auto" onclick="exportSymbolReport()">导出报告</button>
   </div>
 
   <!-- 自定义词语检索 -->
@@ -676,8 +677,7 @@
   <div id="edit-action-bar" class="edit-action-bar">
     <span id="selected-count"></span>
     <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem" onclick="batchBlock()">批量屏蔽</button>
-    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem" onclick="createGroupFromSelected()">创建符号组</button>
-    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem" onclick="addSelectedToGroup()">加入符号组</button>
+    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem" onclick="addSelectedToGroup()">加入/创建符号组</button>
   </div>
 
   <div id="symbols-grid" class="symbols-grid"></div>
@@ -797,6 +797,36 @@
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeEditDateModal()">取消</button>
       <button class="btn-primary" onclick="confirmEditDate()">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── EXPORT REPORT MODAL ─────────────────────── -->
+<div class="modal-overlay" id="export-modal">
+  <div class="modal" style="max-width:440px">
+    <h2>导出符号报告</h2>
+    <p class="modal-meta">以当前筛选条件为基础，选择导出范围和数量限制。</p>
+    <div style="display:flex;flex-direction:column;gap:.9rem;margin:.5rem 0 1.2rem">
+      <label style="font-size:.82rem;color:var(--text-dim);letter-spacing:.05em">包含内容</label>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer">
+          <input type="checkbox" id="exp-symbols" checked> 符号
+        </label>
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer">
+          <input type="checkbox" id="exp-groups" checked> 符号组
+        </label>
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer">
+          <input type="checkbox" id="exp-starred-only"> 仅星标
+        </label>
+      </div>
+      <label style="font-size:.82rem;color:var(--text-dim);letter-spacing:.05em">数量限制（0 = 全部）</label>
+      <input type="number" id="exp-limit" value="0" min="0"
+        style="width:100px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:.45rem .7rem;color:var(--text);font-family:'Noto Serif SC',serif;font-size:.88rem;outline:none">
+      <p style="font-size:.76rem;color:var(--text-dim);margin:0">常用：前 5 / 10 / 20 个；0 = 全部导出</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeExportModal()">取消</button>
+      <button class="btn-primary" onclick="doExportReport()">生成并下载</button>
     </div>
   </div>
 </div>
@@ -1145,13 +1175,26 @@ function toggleEditMode() {
   renderSymbols();
 }
 
-function toggleSelectWord(word) {
-  if (selectedWords.has(word)) {
-    selectedWords.delete(word);
+function toggleSelectWord(key) {
+  if (selectedWords.has(key)) {
+    selectedWords.delete(key);
   } else {
-    selectedWords.add(word);
+    selectedWords.add(key);
   }
-  renderSymbols();
+  // Update just the affected card visually, no full re-render
+  const cards = document.querySelectorAll('#symbols-grid .symbol-card');
+  cards.forEach(card => {
+    const cb = card.querySelector('input[type="checkbox"]');
+    if (!cb) return;
+    const cardKey = cb.dataset.key;
+    if (cardKey === key) {
+      const sel = selectedWords.has(key);
+      card.classList.toggle('selected', sel);
+      cb.checked = sel;
+    }
+  });
+  document.getElementById('selected-count').textContent =
+    selectedWords.size > 0 ? `已选 ${selectedWords.size}` : '';
 }
 
 function renderSymbols() {
@@ -1256,7 +1299,7 @@ function renderGroupCard(g) {
   return `<div class="symbol-card group-card${isSelected ? ' selected' : ''}"
     onclick="${editMode ? `toggleSelectWord('${esc(g.id)}')` : `openGroup('${esc(g.id)}')`}"
     style="padding-right:.6rem">
-    ${editMode ? `<input type="checkbox" class="sym-checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation();toggleSelectWord('${esc(g.id)}')" style="margin-right:.5rem;accent-color:var(--gold)">` : ''}
+    ${editMode ? `<input type="checkbox" class="sym-checkbox" data-key="${esc(g.id)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation();toggleSelectWord('${esc(g.id)}')" style="margin-right:.5rem;accent-color:var(--gold)">` : ''}
     <span class="symbol-word" style="color:var(--gold)">${esc(g.name)}</span>
     <span style="display:flex;align-items:center;gap:.4rem">
       <span class="symbol-count" style="font-size:.8rem;opacity:.8;color:var(--gold)">${g.days}d · ${g.freq}×</span>
@@ -1272,7 +1315,7 @@ function renderSymbolCard(s) {
   return `<div class="symbol-card${isSelected ? ' selected' : ''}"
     onclick="${editMode ? `toggleSelectWord('${esc(s.word)}')` : `openSymbol('${esc(s.word)}')`}"
     style="padding-right:.6rem">
-    ${editMode ? `<input type="checkbox" class="sym-checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation();toggleSelectWord('${esc(s.word)}')" style="margin-right:.5rem;accent-color:var(--moon)">` : ''}
+    ${editMode ? `<input type="checkbox" class="sym-checkbox" data-key="${esc(s.word)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation();toggleSelectWord('${esc(s.word)}')" style="margin-right:.5rem;accent-color:var(--moon)">` : ''}
     <span class="symbol-word">${esc(s.word)}</span>
     <span style="display:flex;align-items:center;gap:.4rem">
       <span class="symbol-count" style="font-size:.85rem;opacity:.8">${s.days}d · ${s.freq}×</span>
@@ -1524,13 +1567,40 @@ function toggleGroupExclude(groupId, word) {
   const idx = arr.indexOf(word);
   if (idx === -1) {
     arr.push(word);
-    toast(`「${word}」已从组内计数排除，在符号志中正常显示`);
+    toast(`「${word}」已从组内计数排除`);
   } else {
     arr.splice(idx, 1);
     if (arr.length === 0) delete DB.groupExcluded[groupId];
     toast(`「${word}」已重新计入符号组`);
   }
-  save(); renderSymbols(); openGroup(groupId);
+  save();
+  // Re-render member list in place without showPage (no scroll jump)
+  const scrollY = window.scrollY;
+  const g = DB.groups[groupId];
+  if (!g) return;
+  const validDates = getDetailValidDates();
+  const ge = (DB.groupExcluded || {})[groupId] || [];
+  const memberHtml = g.words.map(w => {
+    const s = DB.symbols[w];
+    if (!s) return '';
+    const isGExcl = ge.includes(w);
+    const ex = isGExcl ? null : getExclusiveStats(w, validDates);
+    return `<div class="symbol-card${isGExcl ? ' gexcl-card' : ''}" style="cursor:default">
+      <span class="symbol-word" onclick="openSymbol('${esc(w)}')" style="cursor:pointer;${isGExcl ? 'opacity:.45;text-decoration:line-through' : ''}">${esc(w)}</span>
+      <span style="display:flex;align-items:center;gap:.55rem">
+        ${!isGExcl ? `<span class="symbol-count" style="font-size:.82rem">${ex.days}d · ${ex.freq}×</span>` : `<span style="font-size:.74rem;color:var(--text-dim);letter-spacing:.04em">不计入组</span>`}
+        <span class="excl-toggle-btn" style="opacity:1;font-size:.8rem" title="${isGExcl ? '重新计入此组' : '从此组计数排除'}"
+          onclick="toggleGroupExclude('${esc(groupId)}','${esc(w)}')">${isGExcl ? '⊕' : '⊖'}</span>
+        <span style="font-size:.75rem;color:var(--text-dim);cursor:pointer" onclick="removeMemberFromGroup('${esc(groupId)}','${esc(w)}')" title="从组内移除">✕</span>
+      </span>
+    </div>`;
+  }).join('');
+  const membersEl = document.getElementById('group-detail-members');
+  if (membersEl) {
+    const filterLabel = membersEl.querySelector('.filter-label-bar');
+    membersEl.innerHTML = (filterLabel ? filterLabel.outerHTML : '') + (memberHtml || '<div class="empty-state" style="padding:2rem">组内暂无符号</div>');
+  }
+  window.scrollTo(0, scrollY);
 }
 
 // ══════════════════════════════════════════════════════
@@ -2048,6 +2118,168 @@ function esc(s) {
 // ══════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// EXPORT REPORT
+// ══════════════════════════════════════════════════════
+function exportSymbolReport() {
+  document.getElementById('export-modal').classList.add('open');
+}
+function closeExportModal() {
+  document.getElementById('export-modal').classList.remove('open');
+}
+
+function doExportReport() {
+  const inclSymbols = document.getElementById('exp-symbols').checked;
+  const inclGroups  = document.getElementById('exp-groups').checked;
+  const starredOnly = document.getElementById('exp-starred-only').checked;
+  const limit       = parseInt(document.getElementById('exp-limit').value) || 0;
+
+  // Current filter state
+  const filterYear   = document.getElementById('sym-year').value;
+  const filterMonth  = document.getElementById('sym-month').value;
+  const filterSeason = currentSeason;
+  const starred      = DB.starred || [];
+
+  const validDates = (filterYear || filterMonth || filterSeason)
+    ? new Set(Object.values(DB.entries).filter(e => {
+        if (filterYear  && e.year  != filterYear)       return false;
+        if (filterMonth && e.month != filterMonth)      return false;
+        if (filterSeason && e.season !== filterSeason)  return false;
+        return true;
+      }).map(e => e.date))
+    : null;
+
+  // Build items
+  let items = [];
+
+  if (inclGroups) {
+    for (const g of Object.values(DB.groups)) {
+      if (starredOnly && !starred.includes(g.id)) continue;
+      const stats = getGroupStats(g, validDates);
+      if (stats.days === 0) continue;
+      const memberStats = g.words.map(w => {
+        const ge = (DB.groupExcluded || {})[g.id] || [];
+        const ex = getExclusiveStats(w, validDates);
+        return { word: w, days: ex.days, freq: ex.freq, excluded: ge.includes(w) };
+      }).filter(m => m.days > 0 || m.excluded);
+      items.push({ type: 'group', name: g.name, days: stats.days, freq: stats.freq,
+        id: g.id, members: memberStats });
+    }
+  }
+
+  if (inclSymbols) {
+    const groupedWords = new Set();
+    for (const g of Object.values(DB.groups)) {
+      for (const w of g.words) groupedWords.add(w);
+    }
+    for (const s of Object.values(DB.symbols)) {
+      if (DB.blocked.includes(s.word)) continue;
+      if (groupedWords.has(s.word)) continue; // hide grouped symbols (same as main view)
+      if (starredOnly && !starred.includes(s.word)) continue;
+      const ex = getExclusiveStats(s.word, validDates);
+      if (ex.days === 0) continue;
+      items.push({ type: 'symbol', word: s.word, days: ex.days, freq: ex.freq });
+    }
+  }
+
+  // Sort by days desc, freq desc
+  items.sort((a, b) => b.days - a.days || b.freq - a.freq);
+  if (limit > 0) items = items.slice(0, limit);
+
+  // Build human-readable label for filter state
+  const SEASON_ZH = { spring: '春', summer: '夏', autumn: '秋', winter: '冬' };
+  const filterLabel = [
+    filterYear  ? filterYear  + ' 年' : '',
+    filterMonth ? filterMonth + ' 月' : '',
+    filterSeason ? SEASON_ZH[filterSeason] + '季' : '',
+  ].filter(Boolean).join(' · ') || '全部时段';
+  const limitLabel  = limit > 0 ? `前 ${limit} 项` : '全部';
+  const contentLabel = [inclGroups ? '符号组' : '', inclSymbols ? '符号' : ''].filter(Boolean).join(' + ');
+
+  // Generate HTML report
+  const dateStr = new Date().toLocaleDateString('zh-CN', { year:'numeric', month:'long', day:'numeric' });
+  const rows = items.map(item => {
+    if (item.type === 'group') {
+      const memberRows = item.members.map(m =>
+        `<tr class="member-row${m.excluded ? ' excl' : ''}">
+          <td class="member-name">${esc(m.word)}${m.excluded ? ' <span class="excl-tag">不计入组</span>' : ''}</td>
+          <td>${m.excluded ? '—' : m.days + 'd'}</td>
+          <td>${m.excluded ? '—' : m.freq + '×'}</td>
+        </tr>`
+      ).join('');
+      return `<tr class="group-row">
+        <td class="item-name group-name">⬡ ${esc(item.name)}</td>
+        <td>${item.days}d</td>
+        <td>${item.freq}×</td>
+      </tr>${memberRows}`;
+    }
+    return `<tr>
+      <td class="item-name">${esc(item.word)}</td>
+      <td>${item.days}d</td>
+      <td>${item.freq}×</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>梦境志 · 符号报告</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600&family=Cormorant+Garamond:ital,wght@0,300;1,300&display=swap');
+  :root { --moon: #b8c8e8; --gold: #c9b68a; --text: #d8d0c8; --bg: #0e0e12; --border: rgba(180,170,160,0.12); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Serif SC', serif;
+    padding: 3rem 2.5rem; max-width: 700px; margin: 0 auto; line-height: 1.7; }
+  @media print { body { max-width: 100%; padding: 1.5cm 2cm; background: #fff; color: #111; }
+    :root { --moon: #334; --gold: #665; --text: #222; --bg: #fff; --border: #ccc; } }
+  h1 { font-family: 'Cormorant Garamond', serif; font-size: 2rem; font-weight: 300;
+    letter-spacing: .2em; color: var(--moon); margin-bottom: .3rem; }
+  .subtitle { font-size: .78rem; color: var(--gold); letter-spacing: .12em; margin-bottom: 2.5rem; }
+  .meta { font-size: .76rem; opacity: .6; letter-spacing: .08em; margin-bottom: 2.5rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: .72rem; letter-spacing: .1em; color: var(--gold); opacity: .7;
+    padding: .4rem .6rem; border-bottom: 1px solid var(--border); }
+  td { padding: .55rem .6rem; border-bottom: 1px solid var(--border); font-size: .88rem; }
+  td:nth-child(2), td:nth-child(3) { text-align: right; opacity: .7; font-size: .8rem; white-space: nowrap; width: 60px; }
+  .item-name { font-size: .95rem; letter-spacing: .06em; }
+  .group-row td { background: rgba(201,182,138,0.06); }
+  .group-name { color: var(--gold); font-weight: 600; }
+  .member-row td { padding-left: 1.8rem; font-size: .84rem; opacity: .85; }
+  .member-row.excl td { opacity: .45; text-decoration: line-through; }
+  .excl-tag { font-size: .7rem; opacity: .7; text-decoration: none; display: inline-block; }
+  .print-btn { position: fixed; bottom: 1.5rem; right: 1.5rem; padding: .6rem 1.4rem;
+    background: var(--gold); color: #111; border: none; border-radius: 6px;
+    font-family: 'Noto Serif SC', serif; font-size: .82rem; cursor: pointer; }
+  @media print { .print-btn { display: none; } }
+</style>
+</head>
+<body>
+<h1>梦境志</h1>
+<div class="subtitle">符号报告 · Dream Symbol Report</div>
+<div class="meta">
+  时段筛选：${filterLabel} &nbsp;·&nbsp;
+  内容：${contentLabel} &nbsp;·&nbsp;
+  ${limitLabel} &nbsp;·&nbsp;
+  共 ${items.length} 项 &nbsp;·&nbsp;
+  生成于 ${dateStr}
+</div>
+<table>
+  <thead><tr><th>符号</th><th style="text-align:right">天数</th><th style="text-align:right">次数</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<button class="print-btn" onclick="window.print()">打印 / 存为 PDF</button>
+</body></html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `梦境志符号报告_${filterLabel.replace(/ · /g,'_')}_${limitLabel}.html`;
+  a.click();
+  closeExportModal();
+  toast('报告已生成，用浏览器打开后可打印或存为 PDF');
+}
+
 load();
 
 const originalShowPage = showPage;
@@ -2067,6 +2299,9 @@ if (Object.keys(DB.entries).length > 0) {
 
 document.getElementById('group-picker-modal').addEventListener('click', function(e) {
   if (e.target === this) closeGroupPicker();
+});
+document.getElementById('export-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeExportModal();
 });
 document.getElementById('edit-content-modal').addEventListener('click', function(e) {
   if (e.target === this) closeEditContentModal();
