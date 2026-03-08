@@ -594,6 +594,7 @@
     <button class="nav-btn" onclick="showPage('dashboard')" data-page="dashboard">梦境志</button>
     <button class="nav-btn" onclick="showPage('symbols')" data-page="symbols">符号志</button>
     <button class="nav-btn" onclick="showPage('timeline')" data-page="timeline">时间线</button>
+    <button class="nav-btn" onclick="showPage('chart')" data-page="chart">统计图</button>
     <div class="nav-sep"></div>
     <button class="nav-btn" onclick="importJSON()">导入备份</button>
     <button class="nav-btn" onclick="exportJSON()">导出备份</button>
@@ -706,8 +707,9 @@
   <div class="detail-header">
     <div class="detail-word" id="detail-word"></div>
     <div class="detail-freq" id="detail-freq"></div>
-    <div style="margin-left:auto;display:flex;gap:.6rem;align-items:center">
+    <div style="margin-left:auto;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
       <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .9rem" onclick="addCurrentSymbolToGroup()">加入符号组</button>
+      <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .9rem" onclick="addCurrentItemToTag('symbol')">加入标签</button>
     </div>
   </div>
   <!-- 详情页筛选栏 -->
@@ -727,10 +729,12 @@
 <!-- ── GROUP DETAIL ───────────────────────────── -->
 <div id="page-group-detail" class="page">
   <button class="back-btn" onclick="showPage('symbols')">← 返回符号志</button>
-  <div class="detail-header" style="align-items:center;gap:1rem">
+  <div class="detail-header" style="align-items:center;gap:.6rem;flex-wrap:wrap">
     <div class="detail-word" id="group-detail-name" style="color:var(--gold)"></div>
     <span id="group-detail-star" class="star-btn" style="font-size:1.4rem;cursor:pointer"></span>
+    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem" onclick="renameCurrentGroup()">重命名</button>
     <button id="group-detail-edit" class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem">添加成员</button>
+    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem" onclick="addCurrentItemToTag('group')">加入标签</button>
     <button onclick="deleteCurrentGroup()" class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem;color:var(--red)">删除符号组</button>
   </div>
   <div class="section-title">组内符号</div>
@@ -749,6 +753,42 @@
   <div class="entry-meta" id="entry-date"></div>
   <div class="entry-season" id="entry-season"></div>
   <div class="entry-body" id="entry-body"></div>
+</div>
+
+<!-- ── CHART ──────────────────────────────────── -->
+<div id="page-chart" class="page">
+  <div class="dash-header">
+    <h1>统计图</h1>
+    <span class="dash-date" id="chart-subtitle"></span>
+  </div>
+  <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:1.2rem">
+    <div style="flex:1;min-width:220px">
+      <div style="font-size:.78rem;color:var(--text-dim);letter-spacing:.06em;margin-bottom:.5rem">选择符号/符号组（点击添加）</div>
+      <input type="text" id="chart-search" placeholder="搜索…"
+        style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.5rem .8rem;color:var(--text);font-family:'Noto Serif SC',serif;font-size:.84rem;outline:none;margin-bottom:.5rem"
+        oninput="renderChartPicker()">
+      <div id="chart-picker" style="max-height:180px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:.4rem;padding:.3rem 0"></div>
+    </div>
+    <div style="flex:1;min-width:180px">
+      <div style="font-size:.78rem;color:var(--text-dim);letter-spacing:.06em;margin-bottom:.5rem">已选（点击移除）</div>
+      <div id="chart-selected" style="display:flex;flex-wrap:wrap;gap:.4rem;min-height:32px"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.5rem">
+      <div style="font-size:.78rem;color:var(--text-dim);letter-spacing:.06em">Y 轴</div>
+      <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer">
+        <input type="radio" name="chart-yaxis" value="days" checked onchange="drawChart()"> 出现天数
+      </label>
+      <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer">
+        <input type="radio" name="chart-yaxis" value="freq" onchange="drawChart()"> 出现频次
+      </label>
+      <button class="btn-secondary" style="margin-top:.5rem;font-size:.78rem;padding:.35rem .8rem" onclick="clearChartSelection()">清除选择</button>
+    </div>
+  </div>
+  <div id="chart-wrap" style="position:relative;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:1.5rem 1rem 1rem">
+    <canvas id="chart-canvas" style="width:100%;display:block"></canvas>
+    <div id="chart-legend" style="display:flex;flex-wrap:wrap;gap:.6rem 1.2rem;margin-top:1rem;font-size:.78rem"></div>
+    <div id="chart-empty" style="text-align:center;color:var(--text-dim);padding:3rem;font-size:.88rem;display:none">请先选择符号或符号组</div>
+  </div>
 </div>
 
 <!-- ── TIMELINE ────────────────────────────────── -->
@@ -851,8 +891,9 @@
 <!-- ── TAG DETAIL ─────────────────────────────── -->
 <div id="page-tag-detail" class="page">
   <button class="back-btn" onclick="showPage('symbols')">← 返回符号志</button>
-  <div class="detail-header" style="align-items:center;gap:1rem">
+  <div class="detail-header" style="align-items:center;gap:.6rem;flex-wrap:wrap">
     <div class="detail-word" id="tag-detail-name" style="color:#a8c8a0"></div>
+    <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem" onclick="renameCurrentTag()">重命名</button>
     <button class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem;margin-left:auto" onclick="addToCurrentTag()">添加符号/符号组</button>
     <button onclick="deleteCurrentTag()" class="btn-secondary" style="font-size:.78rem;padding:.35rem .8rem;color:var(--red)">删除标签</button>
   </div>
@@ -862,6 +903,37 @@
 
 <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
 <div class="toast" id="toast"></div>
+
+<!-- ── RENAME MODAL ──────────────────────────────── -->
+<div class="modal-overlay" id="rename-modal">
+  <div class="modal" style="max-width:360px">
+    <h2 id="rename-modal-title">重命名</h2>
+    <input type="text" id="rename-input"
+      style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:.8rem 1rem;color:var(--text);font-family:'Noto Serif SC',serif;font-size:1rem;outline:none;letter-spacing:.06em"
+      onkeydown="if(event.key==='Enter')confirmRename()">
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeRenameModal()">取消</button>
+      <button class="btn-primary" onclick="confirmRename()">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TAG ASSIGN MODAL ───────────────────────────── -->
+<div class="modal-overlay" id="tag-assign-modal">
+  <div class="modal" style="max-width:380px">
+    <h2 id="tag-assign-title">加入标签</h2>
+    <div id="tag-assign-list" style="display:flex;flex-direction:column;gap:.45rem;max-height:280px;overflow-y:auto;margin:.5rem 0"></div>
+    <div style="border-top:1px solid var(--border);padding-top:.9rem;margin-top:.5rem;display:flex;gap:.6rem;align-items:center">
+      <input type="text" id="tag-assign-new" placeholder="新建标签…"
+        style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:.45rem .8rem;color:var(--text);font-family:'Noto Serif SC',serif;font-size:.84rem;outline:none"
+        onkeydown="if(event.key==='Enter')tagAssignCreateNew()">
+      <button class="btn-primary" style="padding:.45rem .9rem;font-size:.8rem" onclick="tagAssignCreateNew()">新建</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeTagAssignModal()">取消</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── TAG PICKER MODAL ──────────────────────────── -->
 <div class="modal-overlay" id="tag-picker-modal">
@@ -1211,13 +1283,7 @@ function setFilter(el) {
   renderSymbols();
 }
 
-function renderTagChips() {
-  const container = document.getElementById('tag-filter-chips');
-  container.innerHTML = Object.values(DB.tags).map(t =>
-    `<button class="filter-mode-chip${currentFilter === 'tag:' + t.id ? ' active' : ''}"
-      data-filter="tag:${t.id}" onclick="setFilter(this)">${t.name}</button>`
-  ).join('');
-}
+// renderTagChips defined below with count support
 
 function toggleEditMode() {
   editMode = !editMode;
@@ -2076,37 +2142,8 @@ function clearAllData() {
 }
 
 // ══════════════════════════════════════════════════════
-// CUSTOM WORD SEARCH
+// CUSTOM WORD SEARCH — see new version in CHART section above
 // ══════════════════════════════════════════════════════
-function searchCustomWord() {
-  const input = document.getElementById('custom-word-input');
-  const word = input.value.trim();
-  const resultBox = document.getElementById('custom-search-result');
-  if (!word) { resultBox.style.display = 'none'; return; }
-  const hits = Object.values(DB.entries).filter(e => e.content.includes(word))
-    .sort((a, b) => b.date.localeCompare(a.date));
-  if (hits.length === 0) {
-    resultBox.style.display = 'block';
-    resultBox.innerHTML = `<span style="color:var(--text-dim)">「${esc(word)}」在全部记录中未找到。</span>`;
-    return;
-  }
-  const alreadyExists = !!DB.symbols[word];
-  const datesHtml = hits.map(e =>
-    `<span class="date-chip" onclick="openEntryFromSymbol('${esc(e.date)}','${esc(word)}')" style="display:inline-block;margin:.2rem .3rem .2rem 0">${e.date}</span>`
-  ).join('');
-  resultBox.style.display = 'block';
-  resultBox.innerHTML = `
-    <div style="display:flex;align-items:baseline;gap:1rem;margin-bottom:.8rem;flex-wrap:wrap">
-      <span style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:var(--moon);letter-spacing:.1em">${esc(word)}</span>
-      <span style="color:var(--text-dim);font-size:.8rem">出现于 ${hits.length} 条记录</span>
-      ${alreadyExists
-        ? `<span style="color:var(--gold);font-size:.78rem;letter-spacing:.06em">✓ 已在符号库中</span>`
-        : `<button class="btn-primary" style="padding:.35rem .9rem;font-size:.78rem" onclick="addCustomSymbol('${esc(word)}')">加入符号库</button>`
-      }
-    </div>
-    <div>${datesHtml}</div>
-  `;
-}
 
 function addCustomSymbol(word) {
   let totalFreq = 0;
@@ -2204,49 +2241,7 @@ function newTagId() {
   return 't_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4);
 }
 
-function promptCreateTag() {
-  const name = prompt('新建标签名称：');
-  if (!name || !name.trim()) return;
-  const id = newTagId();
-  DB.tags[id] = { id, name: name.trim(), items: [], blocked: [] };
-  save(); renderSymbols(); toast(`标签「${name.trim()}」已创建`);
-}
-
-function addSelectedToTag() {
-  const keys = [...selectedWords]; // words and group ids
-  if (keys.length === 0) { toast('请先选择符号或符号组', true); return; }
-  const tags = Object.values(DB.tags);
-  if (tags.length === 0) {
-    const name = prompt('暂无标签，输入名称直接创建：');
-    if (!name || !name.trim()) return;
-    const id = newTagId();
-    DB.tags[id] = { id, name: name.trim(), items: [...keys], blocked: [] };
-    selectedWords.clear();
-    save(); renderSymbols(); toast(`标签「${name.trim()}」已创建`);
-    return;
-  }
-  // Show a simple picker (reuse group picker style)
-  const options = tags.map((t, i) => `${i + 1}. ${t.name}`).join('\n');
-  const input = prompt(`选择要加入的标签（输入编号）：\n${options}\n\n输入 0 新建标签`);
-  if (!input) return;
-  const idx = parseInt(input);
-  if (idx === 0) {
-    const name = prompt('新建标签名称：');
-    if (!name || !name.trim()) return;
-    const id = newTagId();
-    DB.tags[id] = { id, name: name.trim(), items: [...keys], blocked: [] };
-    selectedWords.clear();
-    save(); renderSymbols(); toast(`标签「${name.trim()}」已创建`);
-    return;
-  }
-  if (isNaN(idx) || idx < 1 || idx > tags.length) { toast('编号无效', true); return; }
-  const tag = tags[idx - 1];
-  for (const k of keys) {
-    if (!tag.items.includes(k)) tag.items.push(k);
-  }
-  selectedWords.clear();
-  save(); renderSymbols(); toast(`已加入标签「${tag.name}」`);
-}
+// promptCreateTag and addSelectedToTag defined below with in-app modal
 
 function addToCurrentTag() {
   if (!_currentTagId || !DB.tags[_currentTagId]) return;
@@ -2532,6 +2527,421 @@ function doExportReport() {
 }
 
 
+// ══════════════════════════════════════════════════════
+// CHART (统计图)
+// ══════════════════════════════════════════════════════
+let chartSelected = []; // [{key, label, isGroup, color}]
+const CHART_COLORS = [
+  '#b8c8e8','#c9b68a','#a8c8a0','#e8a8a8','#b8a8d8',
+  '#a8d4c8','#e8c88a','#d8b8e8','#8ac8e8','#e8d8a8'
+];
+
+function renderChartPicker() {
+  const search = (document.getElementById('chart-search')||{value:''}).value.trim().toLowerCase();
+  const pickerEl = document.getElementById('chart-picker');
+  if (!pickerEl) return;
+  const selectedKeys = new Set(chartSelected.map(s => s.key));
+
+  let items = [];
+  for (const g of Object.values(DB.groups)) {
+    if (selectedKeys.has(g.id)) continue;
+    if (search && !g.name.toLowerCase().includes(search)) continue;
+    items.push({ key:g.id, label:g.name, isGroup:true });
+  }
+  for (const s of Object.values(DB.symbols)) {
+    if ((DB.blocked||[]).includes(s.word)) continue;
+    if (selectedKeys.has(s.word)) continue;
+    if (search && !s.word.includes(search)) continue;
+    items.push({ key:s.word, label:s.word, isGroup:false });
+  }
+  items.sort((a,b) => a.isGroup === b.isGroup ? 0 : a.isGroup ? -1 : 1);
+
+  pickerEl.innerHTML = items.slice(0,80).map(item =>
+    `<span class="date-chip${item.isGroup ? '' : ''}"
+      style="cursor:pointer;color:${item.isGroup ? 'var(--gold)' : 'var(--text)'};border-color:${item.isGroup ? 'rgba(201,182,138,0.4)' : ''}"
+      onclick="chartAddItem('${esc(item.key)}','${esc(item.label)}',${item.isGroup})">${esc(item.label)}</span>`
+  ).join('') + (items.length > 80 ? `<span style="color:var(--text-dim);font-size:.76rem">…还有 ${items.length-80} 项，请搜索</span>` : '');
+
+  renderChartSelectedChips();
+}
+
+function chartAddItem(key, label, isGroup) {
+  if (chartSelected.find(s => s.key === key)) return;
+  const colorIdx = chartSelected.length % CHART_COLORS.length;
+  chartSelected.push({ key, label, isGroup, color: CHART_COLORS[colorIdx] });
+  renderChartPicker();
+  drawChart();
+}
+
+function chartRemoveItem(key) {
+  chartSelected = chartSelected.filter(s => s.key !== key);
+  renderChartPicker();
+  drawChart();
+}
+
+function clearChartSelection() {
+  chartSelected = [];
+  renderChartPicker();
+  drawChart();
+}
+
+function renderChartSelectedChips() {
+  const el = document.getElementById('chart-selected');
+  if (!el) return;
+  el.innerHTML = chartSelected.map(s =>
+    `<span style="display:inline-flex;align-items:center;gap:.35rem;padding:.3rem .65rem;border-radius:20px;
+      border:1px solid ${s.color};color:${s.color};font-size:.78rem;cursor:pointer;background:rgba(0,0,0,.2)"
+      onclick="chartRemoveItem('${esc(s.key)}')">
+      ${esc(s.label)} <span style="opacity:.6;font-size:.7rem">✕</span>
+    </span>`
+  ).join('');
+  document.getElementById('chart-subtitle').textContent =
+    chartSelected.length ? `${chartSelected.length} 项已选` : '';
+}
+
+function drawChart() {
+  const canvas = document.getElementById('chart-canvas');
+  const emptyEl = document.getElementById('chart-empty');
+  const legendEl = document.getElementById('chart-legend');
+  if (!canvas) return;
+
+  if (chartSelected.length === 0) {
+    canvas.style.display = 'none';
+    emptyEl.style.display = 'block';
+    legendEl.innerHTML = '';
+    return;
+  }
+  canvas.style.display = 'block';
+  emptyEl.style.display = 'none';
+
+  const yMode = document.querySelector('input[name="chart-yaxis"]:checked').value; // 'days'|'freq'
+
+  // Build month buckets across all entries
+  const allEntries = Object.values(DB.entries);
+  if (allEntries.length === 0) return;
+  const dates = allEntries.map(e => e.date).sort();
+  const firstParts = dates[0].split('.');
+  const lastParts  = dates[dates.length-1].split('.');
+  let startY = parseInt(firstParts[0]), startM = parseInt(firstParts[1]);
+  let endY   = parseInt(lastParts[0]),  endM   = parseInt(lastParts[1]);
+  // Expand range to cover all selected symbols
+  const months = [];
+  let y = startY, m = startM;
+  while (y < endY || (y === endY && m <= endM)) {
+    months.push(`${y}.${String(m).padStart(2,'0')}`);
+    m++; if (m > 12) { m = 1; y++; }
+  }
+
+  // For each selected series, compute value per month bucket
+  const series = chartSelected.map(sel => {
+    const values = months.map(ym => {
+      if (sel.isGroup) {
+        const g = DB.groups[sel.key];
+        if (!g) return 0;
+        const vd = new Set(allEntries.filter(e => e.date.startsWith(ym)).map(e => e.date));
+        const stats = getGroupStats(g, vd);
+        return yMode === 'days' ? stats.days : stats.freq;
+      } else {
+        let days = 0, freq = 0;
+        for (const e of allEntries) {
+          if (!e.date.startsWith(ym)) continue;
+          const c = countExclusive(sel.key, e.content);
+          if (c > 0) { days++; freq += c; }
+        }
+        return yMode === 'days' ? days : freq;
+      }
+    });
+    return { ...sel, values };
+  });
+
+  // Draw on canvas
+  const DPR = window.devicePixelRatio || 1;
+  const W = canvas.parentElement.clientWidth - 32;
+  const H = 280;
+  canvas.width  = W * DPR;
+  canvas.height = H * DPR;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+
+  const PAD = { top:20, right:20, bottom:48, left:44 };
+  const plotW = W - PAD.left - PAD.right;
+  const plotH = H - PAD.top - PAD.bottom;
+
+  const maxVal = Math.max(1, ...series.flatMap(s => s.values));
+  const n = months.length;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(180,170,160,0.08)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y0 = PAD.top + plotH * (1 - i/4);
+    ctx.beginPath(); ctx.moveTo(PAD.left, y0); ctx.lineTo(PAD.left+plotW, y0); ctx.stroke();
+    ctx.fillStyle = 'rgba(180,170,160,0.5)';
+    ctx.font = `${11*DPR/DPR}px sans-serif`; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxVal*i/4), PAD.left-6, y0+4);
+  }
+
+  // X axis labels (every ~3 months or fewer)
+  const step = Math.max(1, Math.ceil(n / 14));
+  ctx.fillStyle = 'rgba(180,170,160,0.5)';
+  ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+  for (let i = 0; i < n; i += step) {
+    const x0 = PAD.left + (i / Math.max(n-1,1)) * plotW;
+    const [my, mm] = months[i].split('.');
+    ctx.fillText(`${my.slice(2)}.${mm}`, x0, PAD.top + plotH + 18);
+  }
+
+  // Axes
+  ctx.strokeStyle = 'rgba(180,170,160,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PAD.left, PAD.top); ctx.lineTo(PAD.left, PAD.top+plotH);
+  ctx.lineTo(PAD.left+plotW, PAD.top+plotH); ctx.stroke();
+
+  // Series lines
+  for (const s of series) {
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < n; i++) {
+      const x0 = PAD.left + (i / Math.max(n-1,1)) * plotW;
+      const y0 = PAD.top + plotH * (1 - s.values[i] / maxVal);
+      if (!started) { ctx.moveTo(x0, y0); started = true; }
+      else ctx.lineTo(x0, y0);
+    }
+    ctx.stroke();
+    // Dots for non-zero points
+    for (let i = 0; i < n; i++) {
+      if (s.values[i] === 0) continue;
+      const x0 = PAD.left + (i / Math.max(n-1,1)) * plotW;
+      const y0 = PAD.top + plotH * (1 - s.values[i] / maxVal);
+      ctx.beginPath(); ctx.arc(x0, y0, 3, 0, Math.PI*2);
+      ctx.fillStyle = s.color; ctx.fill();
+    }
+  }
+
+  // Legend
+  legendEl.innerHTML = series.map(s =>
+    `<span style="display:inline-flex;align-items:center;gap:.4rem;color:${s.color};font-size:.78rem">
+      <span style="display:inline-block;width:18px;height:2px;background:${s.color}"></span>
+      ${esc(s.label)}
+    </span>`
+  ).join('');
+
+  // Y axis label
+  ctx.save(); ctx.translate(12, PAD.top + plotH/2); ctx.rotate(-Math.PI/2);
+  ctx.fillStyle = 'rgba(180,170,160,0.4)'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(yMode === 'days' ? '出现天数' : '出现频次', 0, 0);
+  ctx.restore();
+}
+
+// ══════════════════════════════════════════════════════
+// CUSTOM SEARCH TOOLTIP (自定义检索日期悬浮预览)
+// ══════════════════════════════════════════════════════
+function searchCustomWord() {
+  const input = document.getElementById('custom-word-input');
+  const word = input.value.trim();
+  const resultBox = document.getElementById('custom-search-result');
+  if (!word) { resultBox.style.display = 'none'; return; }
+  const hits = Object.values(DB.entries).filter(e => e.content.includes(word))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  if (hits.length === 0) {
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = `<span style="color:var(--text-dim)">「${esc(word)}」在全部记录中未找到。</span>`;
+    return;
+  }
+  const alreadyExists = !!DB.symbols[word];
+  const CONTEXT = 30;
+  const datesHtml = hits.map(e => {
+    // Build snippet for tooltip
+    const text = e.content;
+    const pos = text.indexOf(word);
+    const start = Math.max(0, pos - CONTEXT);
+    const end = Math.min(text.length, pos + word.length + CONTEXT);
+    const snippet = (start > 0 ? '…' : '') + esc(text.slice(start, pos))
+      + `<span class="ctx-hl">${esc(word)}</span>`
+      + esc(text.slice(pos + word.length, end)) + (end < text.length ? '…' : '');
+    return `<span class="chip-wrap" style="display:inline-block;margin:.2rem .3rem .2rem 0;position:relative">
+      <span class="date-chip" onclick="openEntryFromSymbol('${esc(e.date)}','${esc(word)}')">${e.date}</span>
+      <div class="ctx-tooltip">${snippet}</div>
+    </span>`;
+  }).join('');
+  resultBox.style.display = 'block';
+  resultBox.innerHTML = `
+    <div style="display:flex;align-items:baseline;gap:1rem;margin-bottom:.8rem;flex-wrap:wrap">
+      <span style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:var(--moon);letter-spacing:.1em">${esc(word)}</span>
+      <span style="color:var(--text-dim);font-size:.8rem">出现于 ${hits.length} 条记录</span>
+      ${alreadyExists
+        ? `<span style="color:var(--gold);font-size:.78rem;letter-spacing:.06em">✓ 已在符号库中</span>`
+        : `<button class="btn-primary" style="padding:.35rem .9rem;font-size:.78rem" onclick="addCustomSymbol('${esc(word)}')">加入符号库</button>`
+      }
+    </div>
+    <div>${datesHtml}</div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════
+// RENAME MODAL (通用 — 用于标签和符号组)
+// ══════════════════════════════════════════════════════
+let _renameCtx = null; // { type:'tag'|'group', id }
+
+function openRenameModal(title, currentValue, ctx) {
+  _renameCtx = ctx;
+  document.getElementById('rename-modal-title').textContent = title;
+  const input = document.getElementById('rename-input');
+  input.value = currentValue;
+  document.getElementById('rename-modal').classList.add('open');
+  setTimeout(() => { input.focus(); input.select(); }, 80);
+}
+function closeRenameModal() {
+  document.getElementById('rename-modal').classList.remove('open');
+  _renameCtx = null;
+}
+function confirmRename() {
+  const name = document.getElementById('rename-input').value.trim();
+  if (!name) return;
+  if (_renameCtx.type === 'tag') {
+    const tag = DB.tags[_renameCtx.id];
+    if (!tag) return;
+    tag.name = name;
+    save(); closeRenameModal(); renderSymbols();
+    if (document.getElementById('page-tag-detail').classList.contains('active')) {
+      document.getElementById('tag-detail-name').textContent = '# ' + name;
+    }
+    toast('标签已重命名');
+  } else if (_renameCtx.type === 'group') {
+    const g = DB.groups[_renameCtx.id];
+    if (!g) return;
+    g.name = name;
+    save(); closeRenameModal(); renderSymbols();
+    if (document.getElementById('page-group-detail').classList.contains('active')) {
+      document.getElementById('group-detail-name').textContent = name;
+    }
+    toast('符号组已重命名');
+  }
+}
+function renameCurrentTag() {
+  if (!_currentTagId || !DB.tags[_currentTagId]) return;
+  openRenameModal('重命名标签', DB.tags[_currentTagId].name, { type:'tag', id:_currentTagId });
+}
+function renameCurrentGroup() {
+  const name = document.getElementById('group-detail-name').textContent;
+  const groupId = Object.keys(DB.groups).find(id => DB.groups[id].name === name);
+  if (!groupId) return;
+  openRenameModal('重命名符号组', name, { type:'group', id:groupId });
+}
+
+// ══════════════════════════════════════════════════════
+// TAG ASSIGN MODAL (symbol/group 详情页「加入标签」)
+// ══════════════════════════════════════════════════════
+let _tagAssignKeys = []; // keys to assign
+
+function openTagAssignModal(keys, title) {
+  _tagAssignKeys = Array.isArray(keys) ? keys : [keys];
+  document.getElementById('tag-assign-title').textContent = title || '加入标签';
+  document.getElementById('tag-assign-new').value = '';
+  renderTagAssignList();
+  document.getElementById('tag-assign-modal').classList.add('open');
+}
+function closeTagAssignModal() {
+  document.getElementById('tag-assign-modal').classList.remove('open');
+  _tagAssignKeys = [];
+}
+function renderTagAssignList() {
+  const tags = Object.values(DB.tags || {});
+  if (tags.length === 0) {
+    document.getElementById('tag-assign-list').innerHTML =
+      '<div style="color:var(--text-dim);font-size:.82rem;padding:.4rem 0">暂无标签，在下方新建</div>';
+    return;
+  }
+  document.getElementById('tag-assign-list').innerHTML = tags.map(t => {
+    const alreadyIn = _tagAssignKeys.every(k => (t.items||[]).includes(k));
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem .8rem;
+      background:var(--bg3);border-radius:6px;border:1px solid var(--border)">
+      <span style="font-size:.88rem;color:#a8c8a0">${esc(t.name)}</span>
+      ${alreadyIn
+        ? `<span style="font-size:.76rem;color:var(--text-dim)">已在标签内</span>`
+        : `<button class="btn-primary" style="padding:.3rem .8rem;font-size:.76rem" onclick="tagAssignDo('${esc(t.id)}')">加入</button>`
+      }
+    </div>`;
+  }).join('');
+}
+function tagAssignDo(tagId) {
+  const tag = DB.tags[tagId];
+  if (!tag) return;
+  let added = 0;
+  for (const k of _tagAssignKeys) {
+    if (!tag.items.includes(k)) { tag.items.push(k); added++; }
+  }
+  save(); renderTagAssignList(); renderSymbols();
+  toast(added ? `已加入标签「${tag.name}」` : '已在该标签内');
+}
+function tagAssignCreateNew() {
+  const name = document.getElementById('tag-assign-new').value.trim();
+  if (!name) return;
+  const id = newTagId();
+  DB.tags[id] = { id, name, items:[..._tagAssignKeys], blocked:[] };
+  document.getElementById('tag-assign-new').value = '';
+  save(); renderTagAssignList(); renderSymbols();
+  toast(`标签「${name}」已创建`);
+}
+
+// 供 detail 页按钮调用
+function addCurrentItemToTag(type) {
+  if (type === 'symbol') {
+    const word = document.getElementById('detail-word').textContent;
+    if (!word) return;
+    openTagAssignModal([word], `「${word}」加入标签`);
+  } else if (type === 'group') {
+    const gname = document.getElementById('group-detail-name').textContent;
+    const groupId = Object.keys(DB.groups).find(id => DB.groups[id].name === gname);
+    if (!groupId) return;
+    openTagAssignModal([groupId], `「${gname}」加入标签`);
+  }
+}
+
+// 升级 promptCreateTag 为内置弹窗
+function promptCreateTag() {
+  openTagAssignModal([], '新建标签');
+}
+
+// 升级 addSelectedToTag 为内置弹窗
+function addSelectedToTag() {
+  const keys = [...selectedWords];
+  if (keys.length === 0) { toast('请先选择符号或符号组', true); return; }
+  openTagAssignModal(keys, `将 ${keys.length} 项加入标签`);
+  // 确认后 closeTagAssignModal 不清空选中，等toast后再清
+}
+
+// ══════════════════════════════════════════════════════
+// TAG FILTER CHIPS — 加数量显示 + 排除功能
+// ══════════════════════════════════════════════════════
+function renderTagChips() {
+  const container = document.getElementById('tag-filter-chips');
+  const tags = Object.values(DB.tags || {});
+  const starredCount = (DB.starred||[]).filter(k => DB.symbols[k] || DB.groups[k]).length;
+  const groupCount = Object.keys(DB.groups).length;
+
+  // Update counts on static chips
+  document.querySelector('.filter-mode-chip[data-filter="starred"]').textContent =
+    `★ 星标${starredCount ? '('+starredCount+')' : ''}`;
+  document.querySelector('.filter-mode-chip[data-filter="groups"]').textContent =
+    `符号组${groupCount ? '('+groupCount+')' : ''}`;
+
+  container.innerHTML = tags.map(t => {
+    const count = (t.items||[]).length;
+    const isActive = currentFilter === 'tag:' + t.id;
+    return `<button class="filter-mode-chip${isActive ? ' active' : ''}"
+      data-filter="tag:${esc(t.id)}" onclick="setFilter(this)"
+      ># ${esc(t.name)}${count ? '('+count+')' : ''}</button>`;
+  }).join('');
+}
+
 load();
 
 const originalShowPage = showPage;
@@ -2540,6 +2950,7 @@ window.showPage = function(id, pushHistory) {
   if (id === 'dashboard') renderDashboard();
   if (id === 'symbols') { populateFilters(); renderSymbols(); }
   if (id === 'timeline') renderTimeline();
+  if (id === 'chart') renderChartPicker();
 };
 
 if (Object.keys(DB.entries).length > 0) {
@@ -2558,6 +2969,12 @@ document.getElementById('export-modal').addEventListener('click', function(e) {
 document.getElementById('tag-picker-modal').addEventListener('click', function(e) {
   if (e.target === this) closeTagPicker();
 });
+document.getElementById('rename-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeRenameModal();
+});
+document.getElementById('tag-assign-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeTagAssignModal();
+});
 document.getElementById('edit-content-modal').addEventListener('click', function(e) {
   if (e.target === this) closeEditContentModal();
 });
@@ -2566,6 +2983,9 @@ document.getElementById('edit-date-modal').addEventListener('click', function(e)
 });
 document.getElementById('paste-modal').addEventListener('click', function(e) {
   if (e.target === this) closePasteModal();
+});
+window.addEventListener('resize', () => {
+  if (document.getElementById('page-chart').classList.contains('active')) drawChart();
 });
 </script>
 </body>
